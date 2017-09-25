@@ -3,6 +3,7 @@
 #include <ESP8266WiFi.h>
 #include <ESP8266WiFiMulti.h>
 #include "ESP8266HTTPClient.h"
+#include <String.h>
 
 #define Serial Serial
 const char* ssid     = "MIRC311";//"dlink DIR-632";
@@ -17,6 +18,7 @@ void setup() {
   int i;
   
   Serial.begin(115200);
+  pinMode(2, OUTPUT);//GPIO2
   
   //connect to wifi
   Serial.println("-----Connect to Wi-Fi-----");
@@ -39,12 +41,6 @@ void setup() {
   Serial.println("[HTTP] POST..." + url);
   
   http.begin(url);
-  /*
-  http.setUserAgent("python-requests/2.18.1");
-  http.addHeader("Connection","keep-alive");
-  http.useHTTP10(true);
-  http.addHeader("Accept-Encoding","gzip,deflate");
-  */
   http.addHeader("Content-Type","application/json");
   int httpCode = http.POST("{\"profile\": {\"d_name\": \"01.ESP12F\", \"dm_name\": \"ESP12F\", \"is_sim\": false, \"df_list\": [\"esp12f_LED\"]}}");
 
@@ -60,52 +56,33 @@ void setup() {
 }
 
 void loop() {
-  String Str_ret = http.getString();
-  int httpCode;
+  int httpCode;//http state code
+  int i ;
+  String get_ret_str;//After send GET request , store the return string
+  int Brackets_index;// find the third '[' in get_ret_str 
   
-  if(millis() - five_min >10000){
-    //Serial.println("\n[HTTP] PUT..." + url);
-    //http.begin(url);
-    /*
-    http.setUserAgent("python-requests/2.18.1");
-    http.addHeader("Connection","keep-alive");
-    http.useHTTP10(true);
-    http.addHeader("Accept-Encoding","gzip,deflate");
-    */
-    //http.addHeader("Content-Type","application/json");
-    //httpCode = http.PUT("{\"data\":["+String(random(0,10))+"]}");
-    
-    //Serial.println("[HTTP] POST... code:" + (String)httpCode );
-    //Serial.println(http.getString());
-    
-    //http.end();
-    
-    /////////////////////////////////////
-    delay(1000);
+  
+  if(millis() - five_min >1000 ) {
     Serial.println("---------------------------------------------------");
-    /////////////////////////////////////
     http.begin(url);
-    /*
-    http.setUserAgent("python-requests/2.18.1");
-    http.addHeader("Connection","keep-alive");
-    http.useHTTP10(true);
-    http.addHeader("Accept-Encoding","gzip,deflate");
-    */
     http.addHeader("Content-Type","application/json");
     httpCode = http.GET();
     
     Serial.println("[HTTP] GET... code:" + (String)httpCode );
-    Serial.println(http.getString());
+    get_ret_str = http.getString();
+    Serial.println(get_ret_str);
+    Brackets_index=0;
+    for (i=0;i<3;i++)
+      Brackets_index=get_ret_str.indexOf("[",Brackets_index+1);
+    
+    if (get_ret_str[Brackets_index+1] == '1')
+      digitalWrite(2,HIGH);
+    else if(get_ret_str[Brackets_index+1] == '0')
+      digitalWrite(2,LOW);
     
     http.end();
     
     five_min =millis();
   }
-  
-  if (Str_ret != '\0'){
-    //Str_ret = String('\0');
-    //Serial.println(Str_ret);
-  }
-  
 }
 
