@@ -1,33 +1,79 @@
-#include <Arduino.h>
-
+/*
+ * IoTtalk - ESP12F Version 5.0 
+ */
+ 
 #include <ESP8266WiFi.h>
+#include <WiFiClient.h>
+#include <ESP8266WebServer.h>
+#include <ESP8266mDNS.h>
 #include <ESP8266WiFiMulti.h>
 #include "ESP8266HTTPClient.h"
-#include <String.h>
 
-#define Serial Serial
-const char* ssid     = "MIRC311";//"dlink DIR-632";
-const char* password = "pcs54784";//"035731924";
+/*const*/ char* ssid = "";
+/*const*/ char* password = "";
 String url = "http://140.113.199.199:9999/";
 HTTPClient http;
-
+uint8_t wifimode = 1; //1:AP , 0: STA 
 unsigned long five_min;
+
+IPAddress ip(192,168,0,1);
+IPAddress gateway(192,168,0,1);
+IPAddress subnet(255,255,255,0);
+
+ESP8266WebServer server ( 80 );
+
+void handleRoot() {
+  String temp="<html><form action=\"action_page.php\">";
+  temp += "SSID:<br>";
+  temp += "<input type=\"text\" name=\"SSID\" value=\"\"><br>";
+  temp += "Password:<br>";
+  temp += "<input type=\"text\" name=\"Password\" value=\"\">";
+  temp += "<br><br><input type=\"submit\" value=\"Submit\">";
+  temp += "</form></html>";
+  server.send ( 200, "text/html", temp );
+}
+
+void handleNotFound() {
+  if (server.arg(0) != "")
+    wifimode=0;
+}
 
 void setup() {
   uint8_t MAC_array[6];
   int i;
-  
+  char temp[100]="                                                    ";
+  char temp2[100]="                                                    ";
   Serial.begin(115200);
   pinMode(2, OUTPUT);//GPIO2
+  WiFi.mode(WIFI_AP_STA);
+  WiFi.softAPConfig(ip,gateway,subnet);
+  WiFi.softAP("IoTtalk-ESP12F");  
+  Serial.println(WiFi.softAPIP());
   
-  //connect to wifi
+  if ( MDNS.begin ( "esp8266" ) ) 
+    Serial.println ( "MDNS responder started" );
+    
+  server.on ( "/", handleRoot );
+  server.onNotFound ( handleNotFound );
+  server.begin();
+  Serial.println ( "AP started" );
+
+  while(wifimode){
+    server.handleClient();
+  }
+  /////////////////////////////////////////////////////
   Serial.println("-----Connect to Wi-Fi-----");
-  WiFi.begin(ssid, password);//進void setup 一開始就要先執行 後執行會連不上
+  server.arg(0).toCharArray(temp,100);
+  server.arg(1).toCharArray(temp2,100);
+  //Serial.println(ssid);
+  //Serial.println(password);
+  
+  WiFi.begin(temp, temp2);//進void setup 一開始就要先執行 後執行會連不上
   while (WiFi.status() != WL_CONNECTED) {
     delay(500);
     Serial.print(".");
   }
-
+  Serial.println ( WiFi.localIP() );
   //Append the mac address to url string
   WiFi.macAddress(MAC_array);//get esp12f mac address
   for (i=0;i<6;i++){
@@ -56,6 +102,9 @@ void setup() {
 }
 
 void loop() {
+  //Serial.printf("Stations connected = %d\n", WiFi.softAPgetStationNum());
+
+  
   int httpCode;//http state code
   int i ;
   String get_ret_str;//After send GET request , store the return string
@@ -84,5 +133,6 @@ void loop() {
     
     five_min =millis();
   }
-}
+  
 
+}
