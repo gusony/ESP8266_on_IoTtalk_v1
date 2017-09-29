@@ -1,6 +1,6 @@
 /*
- * IoTtalk V2 - ESP12F Version 6.0 
- * can register on iottalk V2 server
+ * IoTtalk V1 - ESP12F Version 7.1 
+ * no new function, just change the Program writing
  */
  
 #include <ESP8266WiFi.h>
@@ -9,191 +9,268 @@
 #include <ESP8266mDNS.h>
 #include <ESP8266WiFiMulti.h>
 #include "ESP8266HTTPClient2.h"
-#include <PubSubClient.h>
-#include <ArduinoJson.h>
+#include <EEPROM.h>
 
-/*const*/ char* ssid = "";
-/*const*/ char* password = "";
-String url = "http://140.113.199.198:9992/";
-const char* mqtt_server = "140.113.199.198";
-#define mqtt_port  1883
+char wifissid[100]="";
+char wifipass[100]="";
+char wifisetting[3][100];
+String url = "http://140.113.199.199:9999/";
 HTTPClient http;
 uint8_t wifimode = 1; //1:AP , 0: STA 
 unsigned long five_min;
 
+String softapname = "IoTtalk-ESP12F";
 IPAddress ip(192,168,0,1);
 IPAddress gateway(192,168,0,1);
 IPAddress subnet(255,255,255,0);
 
 ESP8266WebServer server ( 80 );
-WiFiClient espClient;
-PubSubClient client(espClient);
-DynamicJsonBuffer jsonBuffer;
-String uuid;
 
-void handleRoot(void) {
+void store_ap_ssid_pass(void){
+  // store form: [SSID,PASS,server IP]
+  int addr=0,i,j;
+
+
+  EEPROM.write(addr++,'[');
+  
+  for (i=0;i<3;i++){
+    while(server.arg(i)[j] != '\0')
+      EEPROM.write(addr++,server.arg(i)[j]);
+    if(i<2)
+      EEPROM.write(addr++,',');
+  }
+  
+  EEPROM.write(addr,']');
+  EEPROM.commit();
+  
+  /*
+  String S_ssid_pass = "[" + server.arg(0) + "," + server.arg(1) +"]";
+  char c_ssid_pass[50];
+  
+  S_ssid_pass.toCharArray(c_ssid_pass,50);
+  Serial.println(c_ssid_pass);
+
+  //store data in eeprom
+  while (c_ssid_pass[addr] != ']'){
+    EEPROM.write(addr,c_ssid_pass[addr]);
+    addr++;
+  }
+  EEPROM.write(addr,']');// c_ssid_pass[addr++] == ']'
+  */
+}
+
+boolean read_ap_ssid_pass(void){
+  // store form: [SSID,PASS]
+  //String readdata="";
+  char temp;
+  int addr=0,i,j;
+  
+  temp = EEPROM.read(addr++);
+  if(temp == '['){
+    for (i=0;i<3;i++){
+      j=0;
+      while(1){
+        temp = EEPROM.read(addr++);
+        if(temp == ',' || temp == ']')
+          break;
+        wifisetting[i][j++] = temp;
+      }
+    }
+  }
+  else{
+    Serial.println(temp);
+    Serial.println("no data in eeprom");
+    return false;
+  }
+  /*
+  temp = EEPROM.read(addr++);
+  if(temp == '['){
+    while(1){
+      temp = EEPROM.read(addr++);
+      if(temp == ',')
+        break;
+      readdata += temp;
+    }
+    
+    readdata.toCharArray(wifissid,100);
+    readdata ="";
+    
+    while(1){
+      temp = EEPROM.read(addr++);
+      if(temp == ']')
+        break;
+      readdata += temp;
+    }
+    readdata.toCharArray(wifipass,100);
+    
+    return true;
+  }
+  else{
+    Serial.println(temp);
+    Serial.println("no data in eeprom");
+    return false;
+  }
+  */
+}
+
+void clr_eeprom(void){
+  int addr;
+  delay(3000);
+  if(digitalRead(13) == LOW){// clear eeprom
+    for(addr=0;addr<50;addr++)
+      EEPROM.write(addr,0);
+    EEPROM.commit();
+  }
+}
+
+String scan_network(void){
+  /*output string example
+   * 
+   * <select name="SSID">
+   *  <option value="">請選擇</option>
+   *  <option value="Bryan">Bryan</option>
+   *  <option value="Stanley">Stanley</option>
+   *  <option value="Yaue">Yaue</option>
+   * </select><br>
+   */
+  int AP_N,i;       //AP_N: AP number 
+  String AP_List="<select name=\"SSID\" style=\"width: 150px;\">" ;// make ap_name in a string
+  AP_List += "<option value=\"\">請選擇</option>";
+  
+  WiFi.disconnect();
+  delay(100);
+  AP_N = WiFi.scanNetworks();
+  
+  if(AP_N>0)
+    for (i=0;i<AP_N;i++)
+      AP_List += "<option value=\""+WiFi.SSID(i)+"\">" + WiFi.SSID(i) + "</option>";
+  else
+    AP_List = "<option value="">NO AP</option>";
+  
+  AP_List +="</select><br><br>";
+  return(AP_List); 
+}
+
+void handleRoot() {
   String temp="<html><form action=\"action_page.php\">";
+  temp += "<div style=\"width:400px; height:150px;margin:0px auto;\"><div>";
   temp += "SSID:<br>";
-  temp += "<input type=\"text\" name=\"SSID\" value=\"\"><br>";
+  temp += scan_network();
   temp += "Password:<br>";
-  temp += "<input type=\"text\" name=\"Password\" value=\"\">";
+  temp += "<input type=\"password\" name=\"Password\" vplaceholder=\"輸入AP密碼\" style=\"width: 150px;\">";
   temp += "<br><br><input type=\"submit\" value=\"Submit\">";
-  temp += "</form></html>";
+  temp += "</div></div></form></html>";
   server.send ( 200, "text/html", temp );
 }
 
-void handleNotFound(void) {
-  if (server.arg(0) != "")
-    wifimode=0;
-}
-
-void uuid4(void){
-  int i ;
-  for (i =0; i<36; i++)
-    if(i==8 || i==13 || i==18 || i==23 )
-      uuid+='-';
-    else
-      uuid+=String(random(16),HEX);
-  
-  url+=uuid;
-}
-
-void mqtt_callback(char* topic, byte* payload, unsigned int length) {
-  Serial.print("Message arrived [");
-  Serial.print(topic);
-  Serial.print("] ");
-  for (int i = 0; i < length; i++) {
-    Serial.print((char)payload[i]);
+void handleNotFound() {
+  if (server.arg(0) != ""){//arg[0]-> SSID, arg[1]-> password (both string)
+    server.arg(0).toCharArray(wifissid,100);
+    server.arg(1).toCharArray(wifipass,100);
+    connect_to_wifi();
   }
-  Serial.println();
 }
 
-void init_wifi(void){
-  /*
-   * user key in the ssid and password of wifi ap ,
-   * and then esp8266 connect to wifi
-   */
-  char wifi_ssid[100]=" ";
-  char wifi_pass[100]=" ";
-  uint8_t MAC_array[6];//maybe not need
-  
+void wifi_setting(void){
   WiFi.mode(WIFI_AP_STA);
+  WiFi.disconnect();
   WiFi.softAPConfig(ip,gateway,subnet);
-  WiFi.softAP("IoTtalk-ESP12F");  
-  //Serial.println(WiFi.softAPIP());
+  WiFi.softAP(&softapname[0]);
   
   if ( MDNS.begin ( "esp8266" ) ) 
     Serial.println ( "MDNS responder started" );
-  /*  
+    
   server.on ( "/", handleRoot );
   server.onNotFound ( handleNotFound );
   server.begin();
   Serial.println ( "AP started" );
-
-  while(wifimode){ server.handleClient(); }
-  
-  Serial.println("-----Connect to Wi-Fi-----");
-  server.arg(0).toCharArray(wifi_ssid,100);
-  server.arg(1).toCharArray(wifi_pass,100);
-  */
-  //WiFi.begin(wifi_ssid, wifi_pass);//進void setup 一開始就要先執行 後執行會連不上
-  WiFi.begin("dir632","035731924");
-  while (WiFi.status() != WL_CONNECTED) {
-    delay(500);
-    Serial.print(".");
-  }
-  Serial.println ( WiFi.localIP() );
 }
 
-void reg_iot(void){
-  /*
-   * 1. generate UUID of this device
-   * 2. send http PUT packet to server
-   * 3. send mqtt connect packet
-   * 4. send mqtt subscrib packet
-   * 5. send mqtt publish packet
-   */
-  String temp, str_http_ret,temp2;
-  char willtopic[100];
-  int willqos=true;
-  int willretain=0;
-  char willmessage[100];
-  int pub_sub_code;
+void connect_to_wifi(void){
+  long connecttimeout = millis();
+  Serial.println("-----Connect to Wi-Fi-----");
+  WiFi.begin(wifissid, wifipass);
   
-  uuid4();
+  while (WiFi.status() != WL_CONNECTED && (millis() - connecttimeout < 10000) ) {
+      delay(1000);
+      Serial.print(".");
+  }
   
+  if(WiFi.status() == WL_CONNECTED){
+    Serial.println ( "Connected!\n");
+    store_ap_ssid_pass();
+    wifimode = 0;
+  }
+  else if (millis() - connecttimeout > 10000){
+    Serial.println("Connect fail");
+    wifi_setting();
+  }
   
-  //
-  Serial.println("[HTTP] Begin register...");
-  Serial.println("[HTTP] PUT /" + url);  
+  //Serial.println(WiFi.localIP());
+}
+
+void iottalk_register(void){
+  
+  uint8_t MAC_array[6];
+  int i;
+  if(WiFi.status() !=WL_CONNECTED)
+    connect_to_wifi();
+  
+  //Append the mac address to url string
+  WiFi.macAddress(MAC_array);//get esp12f mac address
+  for (i=0;i<6;i++){
+    if( MAC_array[i]<0x10 )
+      url+="0";
+    url+=String(MAC_array[i],HEX);
+  }
+  
+  //send the register packet
+  Serial.println("[HTTP] begin...");
+  Serial.println("[HTTP] POST..." + url);
+  
   http.begin(url);
   http.addHeader("Content-Type","application/json");
-  int httpCode = http.PUT("{\"name\": \"Dummy_ESP8266\", \"idf_list\": [[\"Dummy_Sensor\", [\"None\"]]], \"odf_list\": [[\"Dummy_Control\", [\"None\"]]], \"accept_protos\": [\"mqtt\"], \"profile\": {\"model\": \"Dummy_Device\"}}");
+  int httpCode = http.POST("{\"profile\": {\"d_name\": \"01.ESP12F\", \"dm_name\": \"ESP12F\", \"is_sim\": false, \"df_list\": [\"esp12f_LED\"]}}");
   Serial.println("[HTTP] POST... code:" + (String)httpCode );
-  Serial.print("Return : ");
-  str_http_ret = http.getString();
-  JsonObject& root = jsonBuffer.parseObject(str_http_ret);
-  Serial.println(str_http_ret);
+  Serial.println(http.getString());
   http.end();
-
   
-  root["ctrl_chans"][0].as<String>().toCharArray(willtopic,100);
-  temp="{\"state\": \"broken\", \"rev\": \"" + root["rev"].as<String>() +"\"}" ;
-  temp.toCharArray(willmessage,100);
+  url +="/esp12f_LED";
+  Serial.println("[HTTP] URL: "+url);
   
-  Serial.print("Attempting MQTT connection...");
-  // Attempt to connect
-  if (client.connect(&uuid[0], &willtopic[0], willqos, boolean(willretain), &willmessage[0])) {
-    Serial.println("connected");
-    
-    temp = root["ctrl_chans"][1].as<String>();
-    if(client.subscribe(&temp[0],1))
-      Serial.println("subscribe successed");
-    Serial.println("subscribe:"+temp);
-    
-    temp = root["ctrl_chans"][0].as<String>();
-    temp2 = "{\"state\": \"online\", \"rev\": \"" + root["rev"].as<String>() +"\"}";
-    if(client.publish(&temp[0],&temp2[0]))
-      Serial.println("publish successed");
-    Serial.println("publish:"+temp);
-  } 
-  else {
-    Serial.print("failed, rc=");
-    Serial.print(client.state());
-    Serial.println(" try again in 5 seconds");
-    // Wait 5 seconds before retrying
-    delay(5000);
-  }
 }
 
-void setup() {
-  int i;
-  
-  Serial.begin(115200);
-  pinMode(2, OUTPUT);//GPIO2
-  
-  init_wifi();
-  client.setServer(mqtt_server, mqtt_port);
-  client.setCallback(mqtt_callback);
-  reg_iot();
 
+void setup() {
+  EEPROM.begin(512);
+  Serial.begin(115200);
+  pinMode(2, OUTPUT);//GPIO2 : on board led
+  pinMode(13, INPUT);//GPIO13: clear eeprom button
+
+  wifi_setting();
+  if(read_ap_ssid_pass())
+    connect_to_wifi();
+  
+  while(wifimode)//waitting for connecting to AP ;
+    server.handleClient();
+  
+  
+  iottalk_register();
   five_min = millis();
 }
 
 void loop() {
   //Serial.printf("Stations connected = %d\n", WiFi.softAPgetStationNum());
-
-  
   int httpCode;//http state code
   int i ;
   String get_ret_str;//After send GET request , store the return string
   int Brackets_index;// find the third '[' in get_ret_str 
-  
-  
-  if(millis() - five_min >1000 ) {
+  long clr_eeprom_timer=0;;
+ 
+  if (digitalRead(13) == LOW)
+    clr_eeprom();
 
-    
-    /*
+  if(millis() - five_min >1000  ) {
     Serial.println("---------------------------------------------------");
     http.begin(url);
     http.addHeader("Content-Type","application/json");
@@ -214,7 +291,6 @@ void loop() {
     http.end();
     
     five_min =millis();
-    */
   }
   
 
