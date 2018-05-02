@@ -10,7 +10,11 @@ String df_name_list[nODF];
 String df_timestamp[nODF];
 long cycleTimestamp = millis();
 String result;
+bool one_time = 0;
 
+
+long latency[1000];
+int i = 0;
 
 int iottalk_register(void){
     url = "http://" + String(IoTtalkServerIP) + ":9999/";  
@@ -124,6 +128,43 @@ String pull(char *df_name){
   else return "___NULL_DATA___";
 }
 
+void test_v1_latency(){
+  
+  String result;
+  long start = millis();
+  long send_timestamp = millis() ;
+  unsigned long sum;
+    int j;
+    unsigned int average;
+  
+  push("ESP12F_IDF", String(send_timestamp) );
+
+  while(millis()-start < 500 && i < 1000){
+    result = pull("ESP12F_ODF");
+    if (result != "___NULL_DATA___" && result.toInt() == send_timestamp){
+      long mis = millis();
+      //Serial.println(String(i)+"\t"+String(mis) + "\t"+ String(send_timestamp)+ "\t"+ String(mis-send_timestamp));
+      latency[i++] = mis - send_timestamp;
+      Serial.println( String( latency[i-1] ));
+      break;
+    }
+  }
+  if(i >= 1000){
+    
+    
+    for(j=0; j<1000; j++)
+      sum += latency[j];
+
+    average = sum/1000;
+
+    Serial.println("Average = "+(String)average);
+    one_time =1;
+  }
+    
+  
+  
+}
+
 void setup() {
     pinMode(CLEAREEPROM, INPUT_PULLUP); //GPIO13: clear eeprom button
     pinMode(LEDPIN, OUTPUT);//GPIO2 : on board led
@@ -164,8 +205,14 @@ void loop() {
     if (digitalRead(CLEAREEPROM) == LOW){
         clr_eeprom(0);
     }
- 
+    
+    if(one_time == 0)
+      test_v1_latency();
+      
     if (millis() - cycleTimestamp > 500) {
+      
+
+        
         /*
         result = pull("ESP12F_LED");
         if (result != "___NULL_DATA___"){
@@ -175,8 +222,9 @@ void loop() {
           else if(result.toInt() == 0) {
             digitalWrite(LEDPIN,HIGH);
           }
-        }*/
-        push("ESP12F_IDF", String(millis()));        
+        }
+        */
+        //push("ESP12F_IDF", String(millis()));        
     
         cycleTimestamp = millis();
     }
