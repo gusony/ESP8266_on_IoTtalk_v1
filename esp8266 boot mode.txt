@@ -23,5 +23,8 @@ boot mode:(X,y)-> x 表示GPIO 15/2/3 個二進制值 high:1,low:0
 6		3.3V			3.3V	0V		SDIO
 7		3.3V			3.3V	3.3V	SDIO
 
-
+		平時			燒錄
+GPIO0	H			L
+GPIO2	H
+GPIO15	H
 

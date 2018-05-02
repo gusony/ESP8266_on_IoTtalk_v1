@@ -20,7 +20,8 @@
 Adafruit_SSD1306 display(OLED_RESET);
 #endif
 
-char IoTtalkServerIP[100] = "140.113.199.198";
+char IoTtalkServerIP[100] = "140.113.199.199"; // v1
+//char IoTtalkServerIP[100] = "140.113.199.198"; // v2
 ESP8266WebServer server ( 80 );
 WiFiClient espClient;
 PubSubClient client(espClient);
@@ -118,7 +119,7 @@ void handleRoot(void){
   temp += "Password:<br>";
   temp += "<input type=\"password\" name=\"Password\" vplaceholder=\"輸入AP密碼\" style=\"width: 150px;\">";
   temp += "<br><br>IoTtalk Server IP<br>";
-  temp += "<input type=\"serverIP\" name=\"serverIP\" value=\"140.113.199.198\" style=\"width: 150px;\">";
+  temp += "<input type=\"serverIP\" name=\"serverIP\" value=\""+String(IoTtalkServerIP)+"\" style=\"width: 150px;\">";
   temp += "<br><br><input type=\"submit\" value=\"Submit\" on_click=\"javascript:alert('TEST');\">";
   temp += "</div></form><br>";
   //temp += "<div><input type=\"button\" value=\"開啟\" onclick=\"location.href=\'turn_on_pin\'\"><br>";

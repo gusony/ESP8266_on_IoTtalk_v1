@@ -19,10 +19,9 @@
 #endif
 
 ///////////////////pin out////////////////////////////////////////////
-#define UPLOAD       0
-#define LEDPIN       2
+#define UPLOAD       0  // when you want to upload code to esp8266, this pin must be LOW
+#define LEDPIN       2  // on board led
 #define CLEAREEPROM  13 //hold for 5 second , it will erease the contain in eeprom
-
 
 #define SSD1306_IIC
 #ifdef SSD1306_IIC   //SSD1306 with IIC
@@ -30,6 +29,7 @@
 #define OLED_SDA   4 //SDA:04, SCL:05 :those two pin are on board
 #define OLED_CLK   5 //but those two define will not be used
 #endif
+//
 //#ifdef  SSD1306_SPI  //SSD1306 with SPI
 //  #define OLED_MOSI  13   //D1 on SSD1306
 //  #define OLED_CLK   14   //D0 on SSD1306
@@ -38,7 +38,6 @@
 //  #define OLED_RESET 16
 //  Adafruit_SSD1306 display(OLED_MOSI, OLED_CLK, OLED_DC, OLED_RESET, OLED_CS);
 //#endif
-
 ///////////////////pin out////////////////////////////////////////////
 
 //EEPROM
