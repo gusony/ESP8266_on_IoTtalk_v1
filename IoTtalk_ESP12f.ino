@@ -11,12 +11,11 @@ String df_timestamp[nODF];
 long cycleTimestamp = millis();
 String result;
 bool one_time = 0;
-
-
 long latency[1000];
 int i = 0;
 
-int iottalk_register(void){
+int iottalk_register(void)
+{
     url = "http://" + String(IoTtalkServerIP) + ":9999/";  
     
     String df_list[] = DF_list;
@@ -56,7 +55,8 @@ int iottalk_register(void){
     return httpCode;
 }
 
-void init_ODFtimestamp(){
+void init_ODFtimestamp(void)
+{
   for (int i=0; i<=nODF; i++) 
     df_timestamp[i] = "";
   
@@ -64,7 +64,8 @@ void init_ODFtimestamp(){
     df_name_list[i] = "";  
 }
 
-int DFindex(char *df_name){
+int DFindex(char *df_name)
+{
     for (int i=0; i<=nODF; i++){
         if (String(df_name) ==  df_name_list[i]) return i;
         else if (df_name_list[i] == ""){
@@ -75,7 +76,8 @@ int DFindex(char *df_name){
     return nODF+1;  // df_timestamp is full
 }
 
-int push(char *df_name, String value){
+int push(char *df_name, String value)
+{
     http.begin( url + String(df_name));
     http.addHeader("Content-Type","application/json");
     String data = "{\"data\":[" + value + "]}";
@@ -90,12 +92,41 @@ int push(char *df_name, String value){
     return httpCode;
 }
 
-String pull(char *df_name){
+String pull(char *df_name)
+{
+  /*
+   * pull one times
+   * the iottalk server will return a json format String
+   * eg. 
+   * {
+   * "samples": [
+   *     [
+   *         "2018-05-03 13:34:21.050927",
+   *         [
+   *             1
+   *         ]
+   *     ],
+   *     [
+   *         "2018-05-03 13:34:20.588854",
+   *         [
+   *             2
+   *         ]
+   *     ]
+   *  ]
+   * }
+   * so,
+   * root["samples"][0][0] is the timestamp
+   * root["samples"][0][1] is the data we want
+   */
+  String get_ret_str;
+  int httpCode;
+  String temp_timestamp="";
+  String last_data = "";  //This last_data is used to fetch the timestamp.
   DynamicJsonBuffer jsonBuffer;
 
   http.begin( url + String(df_name) );
   http.addHeader("Content-Type","application/json");
-  int httpCode = http.GET(); //http state code
+  httpCode = http.GET(); //http state code
   if (httpCode != 200) {
     Serial.println("[HTTP] PULL \"" + String(df_name) + "\"... code: " + (String)httpCode + ", retry to register.");
   }
@@ -106,56 +137,54 @@ String pull(char *df_name){
       if (httpCode == 200) http.GET();
       else delay(3000);
   }
-  String get_ret_str = http.getString();  //After send GET request , store the return string
+  get_ret_str = http.getString();  //After send GET request , store the return string
   JsonObject& root = jsonBuffer.parseObject(get_ret_str);
-  //Serial.println(get_ret_str);
   http.end();
 
-  String portion = "";  //This portion is used to fetch the timestamp.
+  
   if (get_ret_str.indexOf("samples") >=0){ // if not found the string , it will return -1
-      portion = root["samples"][0][0].as<String>();
+      temp_timestamp = root["samples"][0][0].as<String>();
       
-      if (df_timestamp[DFindex(df_name)] != portion){
-          df_timestamp[DFindex(df_name)] = portion;
-          portion = root["samples"][0][1].as<String>();
-          portion[0] = ' ';
-          portion[portion.length()-1] = 0;
+      if (df_timestamp[DFindex(df_name)] != temp_timestamp){
+          df_timestamp[DFindex(df_name)] = temp_timestamp;
+          last_data = root["samples"][0][1].as<String>();
+          last_data[0] = ' ';
+          last_data[last_data.length()-1] = 0;
           
-          return portion;   // return the data.
+          return last_data;   // return the data.
        }
        else return "___NULL_DATA___";
   }
   else return "___NULL_DATA___";
 }
 
-void test_v1_latency(){
-  
+void test_v1_latency(void)
+{
   String result;
   long start = millis();
   long send_timestamp = millis() ;
   unsigned long sum;
-    int j;
-    unsigned int average;
+  int j;
+  unsigned int average;
+  int NofP= 10; //number of packets
   
   push("ESP12F_IDF", String(send_timestamp) );
 
-  while(millis()-start < 500 && i < 1000){
+  while(millis()-start < 500 && i < NofP){
     result = pull("ESP12F_ODF");
     if (result != "___NULL_DATA___" && result.toInt() == send_timestamp){
       long mis = millis();
-      //Serial.println(String(i)+"\t"+String(mis) + "\t"+ String(send_timestamp)+ "\t"+ String(mis-send_timestamp));
       latency[i++] = mis - send_timestamp;
       Serial.println( String( latency[i-1] ));
       break;
     }
   }
-  if(i >= 1000){
-    
-    
-    for(j=0; j<1000; j++)
+  
+  if(i >= NofP){
+    for(j=0; j<NofP; j++)
       sum += latency[j];
 
-    average = sum/1000;
+    average = sum/NofP;
 
     Serial.println("Average = "+(String)average);
     one_time =1;
@@ -165,7 +194,8 @@ void test_v1_latency(){
   
 }
 
-void setup() {
+void setup(void) 
+{
     pinMode(CLEAREEPROM, INPUT_PULLUP); //GPIO13: clear eeprom button
     pinMode(LEDPIN, OUTPUT);//GPIO2 : on board led
     digitalWrite(LEDPIN,HIGH);
@@ -201,7 +231,8 @@ void setup() {
     init_ODFtimestamp();
 }
 
-void loop() {
+void loop(void)
+{
     if (digitalRead(CLEAREEPROM) == LOW){
         clr_eeprom(0);
     }
@@ -210,8 +241,6 @@ void loop() {
       test_v1_latency();
       
     if (millis() - cycleTimestamp > 500) {
-      
-
         
         /*
         result = pull("ESP12F_LED");
