@@ -55,6 +55,7 @@ void ap_setting(void);
 //switch to sta  mode
 void connect_to_wifi(char *wifiSSID, char *wifiPASS);
 void saveInfoAndConnectToWiFi(void);
+void init_ssd1306(void);
 
 
 

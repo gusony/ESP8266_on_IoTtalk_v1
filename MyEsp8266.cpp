@@ -20,7 +20,7 @@
 Adafruit_SSD1306 display(OLED_RESET);
 #endif
 
-char IoTtalkServerIP[100] = "140.113.199.199"; // v1
+char IoTtalkServerIP[100] = "140.113.215.7"; // v1
 //char IoTtalkServerIP[100] = "140.113.199.198"; // v2
 ESP8266WebServer server ( 80 );
 WiFiClient espClient;
@@ -29,7 +29,8 @@ uint8_t wifimode = 1; //1:AP , 0: STA
 
 
 
-void clr_eeprom(int sw){//clear eeprom (and wifi disconnect?)
+void clr_eeprom(int sw)
+{//clear eeprom (and wifi disconnect?)
   if (!sw){
     delay(3000);
   }
@@ -40,7 +41,8 @@ void clr_eeprom(int sw){//clear eeprom (and wifi disconnect?)
     delay(50);
   }
 }
-void save_WiFi_AP_Info(char *wifiSSID, char *wifiPASS, char *ServerIP){  //stoage format: [SSID,PASS,ServerIP]
+void save_WiFi_AP_Info(char *wifiSSID, char *wifiPASS, char *ServerIP)
+{  //stoage format: [SSID,PASS,ServerIP]
 
     char *netInfo[3] = {wifiSSID, wifiPASS, ServerIP};
     int addr=0,i=0,j=0;
@@ -60,7 +62,8 @@ void save_WiFi_AP_Info(char *wifiSSID, char *wifiPASS, char *ServerIP){  //stoag
     EEPROM.commit();
     delay(50);
 }
-int  read_WiFi_AP_Info(char *wifiSSID, char *wifiPASS, char *ServerIP){   // storage format: [SSID,PASS,ServerIP]
+int  read_WiFi_AP_Info(char *wifiSSID, char *wifiPASS, char *ServerIP)
+{   // storage format: [SSID,PASS,ServerIP]
     char *netInfo[3] = {wifiSSID, wifiPASS, ServerIP};
     String readdata="";
     int addr=0;
@@ -90,7 +93,8 @@ int  read_WiFi_AP_Info(char *wifiSSID, char *wifiPASS, char *ServerIP){   // sto
     return 0;
 }
 
-String scan_network(void){
+String scan_network(void)
+{
     int AP_N,i;  //AP_N: AP number
     String AP_List="<select name=\"SSID\" style=\"width: 150px;\">" ;// make ap_name in a string
     AP_List += "<option value=\"\">請選擇</option>";
@@ -108,7 +112,8 @@ String scan_network(void){
     AP_List +="</select><br><br>";
     return(AP_List);
 }
-void handleRoot(void){
+void handleRoot(void)
+{
   Serial.println("handleRoot");
   String temp = "<html><title>Wi-Fi Setting</title>";
   temp += "<head><meta http-equiv=\"Content-Type\" content=\"text/html; charset=utf-8\"/>";
@@ -127,17 +132,20 @@ void handleRoot(void){
   temp += "</html>";
   server.send ( 200, "text/html", temp );
 }
-void handleNotFound(void) {
+void handleNotFound(void) 
+{
   Serial.println("Page Not Found ");
   server.send( 404, "text/html", "Page not found.");
 }
-void start_web_server(void){
+void start_web_server(void)
+{
     server.on ( "/", handleRoot );
     server.on ( "/setup", saveInfoAndConnectToWiFi);
     server.onNotFound ( handleNotFound );
     server.begin();
 }
-void ap_setting(void){
+void ap_setting(void)
+{
   String softapname = "ESP12F-";
   byte mac[6];
   WiFi.macAddress(mac);
@@ -166,7 +174,8 @@ void ap_setting(void){
   while(wifimode) server.handleClient();
   Serial.println("exit ap_setting");
 }
-void connect_to_wifi(char *wifiSSID, char *wifiPASS){
+void connect_to_wifi(char *wifiSSID, char *wifiPASS)
+{
   long connecttimeout = millis();
 
   WiFi.softAPdisconnect(true);
@@ -188,7 +197,8 @@ void connect_to_wifi(char *wifiSSID, char *wifiPASS){
     ap_setting();
   }
 }
-void saveInfoAndConnectToWiFi(void) {
+void saveInfoAndConnectToWiFi(void) 
+{
     Serial.println("Get network information.");
     char _SSID_[100]="";
     char _PASS_[100]="";
@@ -212,5 +222,16 @@ void saveInfoAndConnectToWiFi(void) {
       save_WiFi_AP_Info(_SSID_, _PASS_, IoTtalkServerIP);
       connect_to_wifi(_SSID_, _PASS_);
     }
+}
+
+void init_ssd1306(void)
+{
+  display.begin(SSD1306_SWITCHCAPVCC);
+  display.display();
+  delay(1000);
+  display.clearDisplay();
+  display.setTextSize(1);
+  display.setTextColor(WHITE);
+  display.clearDisplay();
 }
 

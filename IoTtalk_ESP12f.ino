@@ -1,5 +1,5 @@
 #define DM_name  "ESP12F" 
-#define DF_list  {"ESP12F_IDF", "ESP12F_ODF", "ESP12F_LED"}
+#define DF_list  {"ESP12F_IDF", "ESP12F_ODF", "ESP12F_LED", "ESP12F_testlatency"}
 #define nODF     10  // The max number of ODFs which the DA can pull.
 #include "MyEsp8266.h"
 
@@ -8,11 +8,11 @@ HTTPClient http;
 String url = "";
 String df_name_list[nODF];
 String df_timestamp[nODF];
-long cycleTimestamp = millis();
+long cycleTimestamp;
 String result;
 bool one_time = 0;
 long latency[1000];
-int i = 0;
+
 
 int iottalk_register(void)
 {
@@ -161,37 +161,33 @@ String pull(char *df_name)
 void test_v1_latency(void)
 {
   String result;
-  long start = millis();
-  long send_timestamp = millis() ;
-  unsigned long sum;
-  int j;
-  unsigned int average;
-  int NofP= 10; //number of packets
-  
-  push("ESP12F_IDF", String(send_timestamp) );
+  float average;
+  long send_timestamp, mis, sum=0;
+  int i, j, NofP= 1000; //number of packets
 
-  while(millis()-start < 500 && i < NofP){
-    result = pull("ESP12F_ODF");
-    if (result != "___NULL_DATA___" && result.toInt() == send_timestamp){
-      long mis = millis();
-      latency[i++] = mis - send_timestamp;
-      Serial.println( String( latency[i-1] ));
-      break;
+  for(i=0; i<NofP; i){
+    //push
+    send_timestamp = millis() ;
+    push("ESP12F_IDF", String(send_timestamp) );
+
+    //pull
+    while(millis()-send_timestamp < 500){
+      result = pull("ESP12F_ODF");
+      if (result != "___NULL_DATA___" && result.toInt() == send_timestamp){
+        mis = millis();
+        latency[i++] = mis - send_timestamp;
+        Serial.println( String( latency[i-1] ));
+        break;
+      }
     }
   }
   
-  if(i >= NofP){
-    for(j=0; j<NofP; j++)
-      sum += latency[j];
-
-    average = sum/NofP;
-
-    Serial.println("Average = "+(String)average);
-    one_time =1;
+  for(j=0; j<NofP; j++){
+    sum += latency[j];
   }
-    
   
-  
+  average = sum/NofP;
+  Serial.println("Average = "+(String)average);
 }
 
 void setup(void) 
@@ -201,6 +197,9 @@ void setup(void)
     digitalWrite(LEDPIN,HIGH);
     pinMode(16, OUTPUT);//GPIO16 : relay signal
     digitalWrite(16,LOW);
+    randomSeed(analogRead(0));
+
+    init_ssd1306();
 
     EEPROM.begin(512);
     Serial.begin(115200);
@@ -229,6 +228,7 @@ void setup(void)
         }
     }
     init_ODFtimestamp();
+    cycleTimestamp = millis();
 }
 
 void loop(void)
@@ -237,25 +237,18 @@ void loop(void)
         clr_eeprom(0);
     }
     
-    if(one_time == 0)
-      test_v1_latency();
+      
       
     if (millis() - cycleTimestamp > 500) {
-        
-        /*
-        result = pull("ESP12F_LED");
-        if (result != "___NULL_DATA___"){
-          if (result.toInt() > 0) {
-            digitalWrite(LEDPIN,LOW);
-          }
-          else if(result.toInt() == 0) {
-            digitalWrite(LEDPIN,HIGH);
-          }
+      result = pull("ESP12F_testlatency");
+      if (result != "___NULL_DATA___"){
+        if (result.toInt() == 0) {
+          test_v1_latency();
         }
-        */
-        //push("ESP12F_IDF", String(millis()));        
-    
-        cycleTimestamp = millis();
+      }
+      
+      push("ESP12F_IDF", String(ESP8266TrueRandom.random()%1000+1));
+      cycleTimestamp = millis();
     }
 
 }
