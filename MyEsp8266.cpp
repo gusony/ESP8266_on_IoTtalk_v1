@@ -28,7 +28,7 @@ PubSubClient client(espClient);
 uint8_t wifimode = 1; //1:AP , 0: STA
 
 
-
+//EEPROM//EEPROM
 void clr_eeprom(int sw)
 {//clear eeprom (and wifi disconnect?)
   if (!sw){
@@ -41,9 +41,8 @@ void clr_eeprom(int sw)
     delay(50);
   }
 }
-void save_WiFi_AP_Info(char *wifiSSID, char *wifiPASS, char *ServerIP)
-{  //stoage format: [SSID,PASS,ServerIP]
-
+void save_WiFi_AP_Info(char *wifiSSID, char *wifiPASS, char *ServerIP)  //stoage format: [SSID,PASS,ServerIP]
+{
     char *netInfo[3] = {wifiSSID, wifiPASS, ServerIP};
     int addr=0,i=0,j=0;
 
@@ -62,13 +61,14 @@ void save_WiFi_AP_Info(char *wifiSSID, char *wifiPASS, char *ServerIP)
     EEPROM.commit();
     delay(50);
 }
-int  read_WiFi_AP_Info(char *wifiSSID, char *wifiPASS, char *ServerIP)
-{   // storage format: [SSID,PASS,ServerIP]
+int  read_WiFi_AP_Info(char *wifiSSID, char *wifiPASS, char *ServerIP) // storage format: [SSID,PASS,ServerIP]
+{   
     char *netInfo[3] = {wifiSSID, wifiPASS, ServerIP};
     String readdata="";
     int addr=0;
-
+    OLED_print("Read EEPROM data");
     char temp = EEPROM.read(addr++);
+    
     if(temp != '['){
       Serial.println("no data in eeprom");
       return 1;
@@ -93,6 +93,7 @@ int  read_WiFi_AP_Info(char *wifiSSID, char *wifiPASS, char *ServerIP)
     return 0;
 }
 
+//server ,ap mode//server ,ap mode
 String scan_network(void)
 {
     int AP_N,i;  //AP_N: AP number
@@ -143,6 +144,7 @@ void start_web_server(void)
     server.on ( "/setup", saveInfoAndConnectToWiFi);
     server.onNotFound ( handleNotFound );
     server.begin();
+    OLED_print("Web Server Start!");
 }
 void ap_setting(void)
 {
@@ -177,7 +179,7 @@ void ap_setting(void)
 void connect_to_wifi(char *wifiSSID, char *wifiPASS)
 {
   long connecttimeout = millis();
-
+  OLED_print("Connect to Wi-Fi");
   WiFi.softAPdisconnect(true);
   Serial.println("-----Connect to Wi-Fi-----");
   WiFi.begin(wifiSSID, wifiPASS);
@@ -219,6 +221,7 @@ void saveInfoAndConnectToWiFi(void)
       Serial.print("][");
       Serial.print(IoTtalkServerIP);
       Serial.println("]");
+      OLED_print("User keyin ssid\nConnect to "+(String)_SSID_);
       save_WiFi_AP_Info(_SSID_, _PASS_, IoTtalkServerIP);
       connect_to_wifi(_SSID_, _PASS_);
     }
@@ -227,11 +230,17 @@ void saveInfoAndConnectToWiFi(void)
 void init_ssd1306(void)
 {
   display.begin(SSD1306_SWITCHCAPVCC);
-  display.display();
+  display.clearDisplay();
   delay(1000);
-  display.clearDisplay();
-  display.setTextSize(1);
+  display.setTextSize(1); //21 char in one line with Textsize == 1 ,10 char with size 2
   display.setTextColor(WHITE);
+  display.display();
+}
+void OLED_print(String mes)
+{
   display.clearDisplay();
+  display.setCursor(0,0);
+  display.print(mes);
+  display.display();
 }
 

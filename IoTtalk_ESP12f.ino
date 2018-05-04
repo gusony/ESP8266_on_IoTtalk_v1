@@ -3,6 +3,7 @@
 #define nODF     10  // The max number of ODFs which the DA can pull.
 #include "MyEsp8266.h"
 
+extern Adafruit_SSD1306 display;
 extern char IoTtalkServerIP[100];
 HTTPClient http;
 String url = "";
@@ -50,6 +51,9 @@ int iottalk_register(void)
 
     Serial.println("[HTTP] Register... code: " + (String)httpCode );
     Serial.println(http.getString());
+    
+    if(httpCode == 200)
+      OLED_print("IoTtalk V1 \nRegister Successful!");
     //http.end();
     url +="/";  
     return httpCode;
@@ -150,7 +154,7 @@ String pull(char *df_name)
           last_data = root["samples"][0][1].as<String>();
           last_data[0] = ' ';
           last_data[last_data.length()-1] = 0;
-          
+          OLED_print("PULL '"+(String)df_name+"':\n"+last_data);
           return last_data;   // return the data.
        }
        else return "___NULL_DATA___";
@@ -198,18 +202,17 @@ void setup(void)
     pinMode(16, OUTPUT);//GPIO16 : relay signal
     digitalWrite(16,LOW);
     randomSeed(analogRead(0));
-
+  
     init_ssd1306();
-
+  
     EEPROM.begin(512);
     Serial.begin(115200);
-
+  
     char wifissid[100]="";
     char wifipass[100]="";
     int statesCode = read_WiFi_AP_Info(wifissid, wifipass, IoTtalkServerIP);
-    //for (int k=0; k<50; k++) Serial.printf("%c", EEPROM.read(k) );  //inspect EEPROM data for the debug purpose.
   
-    if (!statesCode){  
+    if (!statesCode){
       connect_to_wifi(wifissid, wifipass);
     }
     else{
@@ -217,7 +220,7 @@ void setup(void)
         ap_setting();
     }
     //while(wifimode) server.handleClient(); //waitting for connecting to AP ;
-
+  
     statesCode = 0;
     while (statesCode != 200) {
         statesCode = iottalk_register();
@@ -239,7 +242,7 @@ void loop(void)
     
       
       
-    if (millis() - cycleTimestamp > 500) {
+    if (millis() - cycleTimestamp > 100) {
       result = pull("ESP12F_testlatency");
       if (result != "___NULL_DATA___"){
         if (result.toInt() == 0) {

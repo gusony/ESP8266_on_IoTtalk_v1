@@ -55,7 +55,10 @@ void ap_setting(void);
 //switch to sta  mode
 void connect_to_wifi(char *wifiSSID, char *wifiPASS);
 void saveInfoAndConnectToWiFi(void);
+
+//SSD1306, the OLED monitor
 void init_ssd1306(void);
+void OLED_print(String mes);
 
 
 
