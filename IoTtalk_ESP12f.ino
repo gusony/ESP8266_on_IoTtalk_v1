@@ -133,20 +133,12 @@ String pull(char *df_name)
   httpCode = http.GET(); //http state code
   if (httpCode != 200) {
     Serial.println("[HTTP] PULL \"" + String(df_name) + "\"... code: " + (String)httpCode + ", retry to register.");
+    return "___NULL_DATA___";
   }
-  
-  while (httpCode != 200){
-      digitalWrite(LEDPIN, HIGH);
-      httpCode = iottalk_register();
-      if (httpCode == 200) http.GET();
-      else delay(3000);
-  }
-  get_ret_str = http.getString();  //After send GET request , store the return string
-  JsonObject& root = jsonBuffer.parseObject(get_ret_str);
-  http.end();
-
-  
-  if (get_ret_str.indexOf("samples") >=0){ // if not found the string , it will return -1
+  else{
+    get_ret_str = http.getString();  //After send GET request , store the return string
+    JsonObject& root = jsonBuffer.parseObject(get_ret_str);
+    if (get_ret_str.indexOf("samples") >=0){ // if not found the string , it will return -1
       temp_timestamp = root["samples"][0][0].as<String>();
       
       if (df_timestamp[DFindex(df_name)] != temp_timestamp){
@@ -154,39 +146,57 @@ String pull(char *df_name)
           last_data = root["samples"][0][1].as<String>();
           last_data[0] = ' ';
           last_data[last_data.length()-1] = 0;
-          OLED_print("PULL '"+(String)df_name+"':\n"+last_data);
           return last_data;   // return the data.
        }
        else return "___NULL_DATA___";
   }
   else return "___NULL_DATA___";
+  }
+  http.end();
+/*
+  while (httpCode != 200){
+      digitalWrite(LEDPIN, HIGH);
+      httpCode = iottalk_register();
+      if (httpCode == 200) http.GET();
+      else delay(3000);
+  }
+*/
+  
+  
+  
+  
 }
 
 void test_v1_latency(void)
 {
-  String result;
+  String rep;
   float average;
-  long send_timestamp, mis, sum=0;
+  long send_timestamp, sum=0;
   int i, j, NofP= 1000; //number of packets
 
+  Serial.println("Start test latency, please waiting");
+  OLED_print("Start test \nlatency");
+  
   for(i=0; i<NofP; i){
     //push
     send_timestamp = millis() ;
     push("ESP12F_IDF", String(send_timestamp) );
-
+    
     //pull
     while(millis()-send_timestamp < 500){
-      result = pull("ESP12F_ODF");
-      if (result != "___NULL_DATA___" && result.toInt() == send_timestamp){
-        mis = millis();
-        latency[i++] = mis - send_timestamp;
-        Serial.println( String( latency[i-1] ));
+      //long start_time = millis();
+      rep = pull("ESP12F_ODF");
+      //Serial.println((String)(millis() - start_time));
+      
+      if (rep != "___NULL_DATA___" && rep.toInt() == send_timestamp && millis() - send_timestamp < 500){
+        latency[i++] = millis() - send_timestamp;
         break;
       }
     }
   }
-  
+  //Serial.println("-------------------");
   for(j=0; j<NofP; j++){
+    Serial.println(latency[j]);
     sum += latency[j];
   }
   
@@ -239,9 +249,9 @@ void loop(void)
     if (digitalRead(CLEAREEPROM) == LOW){
         clr_eeprom(0);
     }
-    
-      
-      
+
+
+
     if (millis() - cycleTimestamp > 100) {
       result = pull("ESP12F_testlatency");
       if (result != "___NULL_DATA___"){

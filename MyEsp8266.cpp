@@ -1,17 +1,17 @@
 #ifndef all_header
 #define all_header
-#include "ArduinoJson.h" // json library
-#include "ESP8266TrueRandom.h" // uuid library
+#include <SPI.h>
+#include <Wire.h>
+#include <EEPROM.h>
+#include <PubSubClient.h> // MQTT library
+#include <Adafruit_GFX.h>
+#include <Adafruit_SSD1306.h>
 #include <ESP8266WiFi.h>
 #include <ESP8266WebServer.h>
 #include <ESP8266WiFiMulti.h>
+#include "ArduinoJson.h" // json library
+#include "ESP8266TrueRandom.h" // uuid library
 #include "ESP8266HTTPClient2.h"
-#include <EEPROM.h>
-#include <PubSubClient.h> // MQTT library
-#include <SPI.h>
-#include <Wire.h>
-#include <Adafruit_GFX.h>
-#include <Adafruit_SSD1306.h>
 #include "MyEsp8266.h"
 #endif
 
@@ -20,7 +20,7 @@
 Adafruit_SSD1306 display(OLED_RESET);
 #endif
 
-char IoTtalkServerIP[100] = "140.113.215.7"; // v1
+char IoTtalkServerIP[100] = "140.113.199.222"; // v1
 //char IoTtalkServerIP[100] = "140.113.199.198"; // v2
 ESP8266WebServer server ( 80 );
 WiFiClient espClient;
@@ -62,13 +62,13 @@ void save_WiFi_AP_Info(char *wifiSSID, char *wifiPASS, char *ServerIP)  //stoage
     delay(50);
 }
 int  read_WiFi_AP_Info(char *wifiSSID, char *wifiPASS, char *ServerIP) // storage format: [SSID,PASS,ServerIP]
-{   
+{
     char *netInfo[3] = {wifiSSID, wifiPASS, ServerIP};
     String readdata="";
     int addr=0;
     OLED_print("Read EEPROM data");
     char temp = EEPROM.read(addr++);
-    
+
     if(temp != '['){
       Serial.println("no data in eeprom");
       return 1;
@@ -133,7 +133,7 @@ void handleRoot(void)
   temp += "</html>";
   server.send ( 200, "text/html", temp );
 }
-void handleNotFound(void) 
+void handleNotFound(void)
 {
   Serial.println("Page Not Found ");
   server.send( 404, "text/html", "Page not found.");
@@ -199,7 +199,7 @@ void connect_to_wifi(char *wifiSSID, char *wifiPASS)
     ap_setting();
   }
 }
-void saveInfoAndConnectToWiFi(void) 
+void saveInfoAndConnectToWiFi(void)
 {
     Serial.println("Get network information.");
     char _SSID_[100]="";
@@ -243,4 +243,25 @@ void OLED_print(String mes)
   display.print(mes);
   display.display();
 }
+//String get_pm25(void)
+//{
+//  pms.begin(pms_baudrate);
+//  while(1){
+//    pms.readBytes(pms3003,2);
+//    if(pms3003[0]==0x42 || pms3003[1]==0x4d){//尋找每段資料的開頭
+//      for(i=0;i<5;i++)
+//        pms.readBytes(pms3003,2);      
+//      break;
+//    }
+//  }
+//  esp.begin(esp_baudrate);
+//  return (String)pms3003[1];
+//}
+//void lcd_print(String Str,int column,int row)
+//{
+//  lcd.setCursor(column,row);
+//  lcd.print(Str);
+//}
+
+
 

@@ -3,18 +3,18 @@
 */
 #ifndef all_header
 #define all_header
-#include "ArduinoJson.h" // json library
-#include "ESP8266TrueRandom.h" // uuid library
+#include <SPI.h>
+#include <Wire.h>
+#include <EEPROM.h>
+#include <PubSubClient.h> // MQTT library
+#include <Adafruit_GFX.h>
+#include <Adafruit_SSD1306.h>
 #include <ESP8266WiFi.h>
 #include <ESP8266WebServer.h>
 #include <ESP8266WiFiMulti.h>
+#include "ArduinoJson.h" // json library
+#include "ESP8266TrueRandom.h" // uuid library
 #include "ESP8266HTTPClient2.h"
-#include <EEPROM.h>
-#include <PubSubClient.h> // MQTT library
-#include <SPI.h>
-#include <Wire.h>
-#include <Adafruit_GFX.h>
-#include <Adafruit_SSD1306.h>
 #include "MyEsp8266.h"
 #endif
 
@@ -59,6 +59,11 @@ void saveInfoAndConnectToWiFi(void);
 //SSD1306, the OLED monitor
 void init_ssd1306(void);
 void OLED_print(String mes);
+
+// sensor (pms3003, pms5003, dht22, dht11 )
+String get_pm25(void);
+void lcd_print(String Str,int column,int row); //print word on lcd,column 0~15,row 0~1
+
 
 
 
