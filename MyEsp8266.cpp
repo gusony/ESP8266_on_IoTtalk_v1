@@ -9,16 +9,17 @@
 #include <ESP8266WiFi.h>
 #include <ESP8266WebServer.h>
 #include <ESP8266WiFiMulti.h>
+#include <SoftwareSerial.h>
 #include "ArduinoJson.h" // json library
 #include "ESP8266TrueRandom.h" // uuid library
 #include "ESP8266HTTPClient2.h"
 #include "MyEsp8266.h"
 #endif
 
-#define SSD1306_IIC
-#ifdef SSD1306_IIC  //SSD1306 with IIC
-Adafruit_SSD1306 display(OLED_RESET);
-#endif
+//#define SSD1306_IIC
+//#ifdef SSD1306_IIC  //SSD1306 with IIC
+//Adafruit_SSD1306 display(OLED_RESET);
+//#endif
 
 char IoTtalkServerIP[100] = "140.113.199.222"; // v1
 //char IoTtalkServerIP[100] = "140.113.199.198"; // v2
@@ -26,6 +27,9 @@ ESP8266WebServer server ( 80 );
 WiFiClient espClient;
 PubSubClient client(espClient);
 uint8_t wifimode = 1; //1:AP , 0: STA
+
+SoftwareSerial pms(PMS_RX, PMS_TX);
+SoftwareSerial GPS(GPS_RX, GPS_TX);
 
 
 //EEPROM//EEPROM
@@ -66,7 +70,7 @@ int  read_WiFi_AP_Info(char *wifiSSID, char *wifiPASS, char *ServerIP) // storag
     char *netInfo[3] = {wifiSSID, wifiPASS, ServerIP};
     String readdata="";
     int addr=0;
-    OLED_print("Read EEPROM data");
+    ////OLED_print("Read EEPROM data");
     char temp = EEPROM.read(addr++);
 
     if(temp != '['){
@@ -144,7 +148,7 @@ void start_web_server(void)
     server.on ( "/setup", saveInfoAndConnectToWiFi);
     server.onNotFound ( handleNotFound );
     server.begin();
-    OLED_print("Web Server Start!");
+    //OLED_print("Web Server Start!");
 }
 void ap_setting(void)
 {
@@ -179,7 +183,7 @@ void ap_setting(void)
 void connect_to_wifi(char *wifiSSID, char *wifiPASS)
 {
   long connecttimeout = millis();
-  OLED_print("Connect to Wi-Fi");
+  //OLED_print("Connect to Wi-Fi");
   WiFi.softAPdisconnect(true);
   Serial.println("-----Connect to Wi-Fi-----");
   WiFi.begin(wifiSSID, wifiPASS);
@@ -221,41 +225,107 @@ void saveInfoAndConnectToWiFi(void)
       Serial.print("][");
       Serial.print(IoTtalkServerIP);
       Serial.println("]");
-      OLED_print("User keyin ssid\nConnect to "+(String)_SSID_);
+      //OLED_print("User keyin ssid\nConnect to "+(String)_SSID_);
       save_WiFi_AP_Info(_SSID_, _PASS_, IoTtalkServerIP);
       connect_to_wifi(_SSID_, _PASS_);
     }
 }
 
-void init_ssd1306(void)
+//void init_ssd1306(void)
+//{
+//  display.begin(SSD1306_SWITCHCAPVCC);
+//  display.clearDisplay();
+//  delay(1000);
+//  display.setTextSize(1); //21 char in one line with Textsize == 1 ,10 char with size 2
+//  display.setTextColor(WHITE);
+//  display.display();
+//}
+//void OLED_print(String mes)
+//{
+//  display.clearDisplay();
+//  display.setCursor(0,0);
+//  display.print(mes);
+//  display.display();
+//}
+
+String read_pm25(void) //get pm2.5 data
 {
-  display.begin(SSD1306_SWITCHCAPVCC);
-  display.clearDisplay();
-  delay(1000);
-  display.setTextSize(1); //21 char in one line with Textsize == 1 ,10 char with size 2
-  display.setTextColor(WHITE);
-  display.display();
+    unsigned char pms5003[2];//store pms5003 data
+    long read_timeout;
+    int i;
+    pms.begin(pms_baudrate);
+    read_timeout = millis();
+    
+    while(millis() - read_timeout <= 5000){
+        pms.readBytes(pms5003,2);
+        if(pms5003[0]==0x42 || pms5003[1]==0x4d){//尋找每段資料的開頭
+            for(i=0; i<6; i++){
+                pms.readBytes(pms5003,2);
+            }
+            pms.end();
+            return (String)pms5003[1];
+        }
+    }
+    pms.end();
+    return (String)0;
 }
-void OLED_print(String mes)
+String get_GPS(void)
 {
-  display.clearDisplay();
-  display.setCursor(0,0);
-  display.print(mes);
-  display.display();
+  long timeout = millis();
+  char c;
+  String result;
+  String 
+  String 
+  bool find_flag = 0;
+
+
+  String Time, Date, Lat/* latitude經度*/ ,Lon/*longitude緯度*/;
+  GPS.begin(GPS_baudrate);
+  while(millis() - timeout < 5000 ){
+    //read line from serial
+    c = GPS.read()
+    if(c == '$'){
+      find_flag = 1;
+      result = "";
+    }
+    else if (c == '\n'){
+      find_flag = 0;
+    }
+
+    
+    if(find_flag  == 1){
+      result += c;
+    }
+    else if (find_flag == 0)
+    {
+      //GPRMC
+      
+    }
+    
+    
+    Serial.print((char)GPS.read());
+    delay(10);
+    
+  }
+  GPS.end();
+
+  result = "$GPRMC,055316.00,A,2447.22054,N,12059.81815,E,0.636,,100518,,,A*74$GPRMC,055316.00,A,2447.22054,N,12059.81815,E,0.636,,100518,,,A*74";
+  
+  
 }
 //String get_pm25(void)
 //{
 //  pms.begin(pms_baudrate);
 //  while(1){
-//    pms.readBytes(pms3003,2);
-//    if(pms3003[0]==0x42 || pms3003[1]==0x4d){//尋找每段資料的開頭
+//    pms.readBytes(pms5003,2);
+//    if(pms5003[0]==0x42 || pms5003[1]==0x4d){//尋找每段資料的開頭
 //      for(i=0;i<5;i++)
-//        pms.readBytes(pms3003,2);      
+//        pms.readBytes(pms5003,2);      
 //      break;
 //    }
 //  }
 //  esp.begin(esp_baudrate);
-//  return (String)pms3003[1];
+//  return (String)pms5003[1];
 //}
 //void lcd_print(String Str,int column,int row)
 //{

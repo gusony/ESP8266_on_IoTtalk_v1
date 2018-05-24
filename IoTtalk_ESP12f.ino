@@ -3,6 +3,9 @@
 #define nODF     10  // The max number of ODFs which the DA can pull.
 #include "MyEsp8266.h"
 
+#define Nofp_time 1
+#define NofP 1000 // number of test packets
+
 extern Adafruit_SSD1306 display;
 extern char IoTtalkServerIP[100];
 HTTPClient http;
@@ -11,8 +14,6 @@ String df_name_list[nODF];
 String df_timestamp[nODF];
 long cycleTimestamp;
 String result;
-bool one_time = 0;
-long latency[1000];
 
 
 int iottalk_register(void)
@@ -52,8 +53,8 @@ int iottalk_register(void)
     Serial.println("[HTTP] Register... code: " + (String)httpCode );
     Serial.println(http.getString());
     
-    if(httpCode == 200)
-      OLED_print("IoTtalk V1 \nRegister Successful!");
+    //if(httpCode == 200)
+      //OLED_print("IoTtalk V1 \nRegister Successful!");
     //http.end();
     url +="/";  
     return httpCode;
@@ -172,36 +173,40 @@ void test_v1_latency(void)
   String rep;
   float average;
   long send_timestamp, sum=0;
-  int i, j, NofP= 1000; //number of packets
+  long push_time, time1;
+  int i, j, k; //number of packets
+  long latency[Nofp_time * NofP];
 
   Serial.println("Start test latency, please waiting");
-  OLED_print("Start test \nlatency");
-  
-  for(i=0; i<NofP; i){
-    //push
-    send_timestamp = millis() ;
-    push("ESP12F_IDF", String(send_timestamp) );
-    
-    //pull
-    while(millis()-send_timestamp < 500){
-      //long start_time = millis();
-      rep = pull("ESP12F_ODF");
-      //Serial.println((String)(millis() - start_time));
-      
-      if (rep != "___NULL_DATA___" && rep.toInt() == send_timestamp && millis() - send_timestamp < 500){
-        latency[i++] = millis() - send_timestamp;
-        break;
+  //OLED_print("Start test \nlatency");
+
+  for (k=0; k<Nofp_time; k++)
+    for(i=0; i<NofP; i){
+      //push
+      send_timestamp = millis();
+      push("ESP12F_IDF", String(send_timestamp) );
+      push_time = millis() - send_timestamp;
+      //Serial.println("push_time = " + (String)push_time);
+
+      //pull
+      while(millis()-send_timestamp < 500){
+        rep = pull("ESP12F_ODF");
+        if (rep != "___NULL_DATA___" && rep.toInt() == send_timestamp && millis() - send_timestamp < 500){
+            latency[i++] = millis() - send_timestamp - push_time;
+            break;
+        }
       }
     }
-  }
-  //Serial.println("-------------------");
-  for(j=0; j<NofP; j++){
-    Serial.println(latency[j]);
-    sum += latency[j];
+  for(i=0; i < NofP; i++){
+    Serial.println(latency[i]);
+    sum += latency[i];
   }
   
-  average = sum/NofP;
-  Serial.println("Average = "+(String)average);
+//  average = sum/NofP;
+//  Serial.println("Average = "+(String)average);
+  Serial.println("Test finish");
+  //OLED_print("Test finish");
+  
 }
 
 void setup(void) 
@@ -213,11 +218,10 @@ void setup(void)
     digitalWrite(16,LOW);
     randomSeed(analogRead(0));
   
-    init_ssd1306();
+    //init_ssd1306();
   
     EEPROM.begin(512);
     Serial.begin(115200);
-  
     char wifissid[100]="";
     char wifipass[100]="";
     int statesCode = read_WiFi_AP_Info(wifissid, wifipass, IoTtalkServerIP);
@@ -250,16 +254,17 @@ void loop(void)
         clr_eeprom(0);
     }
 
+    
 
-
-    if (millis() - cycleTimestamp > 100) {
+    if (millis() - cycleTimestamp > 1000) {
       result = pull("ESP12F_testlatency");
       if (result != "___NULL_DATA___"){
         if (result.toInt() == 0) {
           test_v1_latency();
         }
       }
-      
+      get_GPS();
+      Serial.println("PM2.5:"+read_pm25());
       push("ESP12F_IDF", String(ESP8266TrueRandom.random()%1000+1));
       cycleTimestamp = millis();
     }
