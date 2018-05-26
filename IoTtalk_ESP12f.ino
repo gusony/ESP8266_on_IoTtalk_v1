@@ -1,5 +1,5 @@
 #define DM_name  "ESP12F" 
-#define DF_list  {"ESP12F_IDF", "ESP12F_ODF", "ESP12F_LED", "ESP12F_testlatency"}
+#define DF_list  {"ESP12F_IDF", "ESP12F_PM2.5", "ESP12F_ODF", "ESP12F_LED", "ESP12F_testlatency"}
 #define nODF     10  // The max number of ODFs which the DA can pull.
 #include "MyEsp8266.h"
 
@@ -86,14 +86,17 @@ int push(char *df_name, String value)
     http.begin( url + String(df_name));
     http.addHeader("Content-Type","application/json");
     String data = "{\"data\":[" + value + "]}";
+    //Serial.println(url + String(df_name));
+    //Serial.println(data);
     int httpCode = http.PUT(data);
+    
     if (httpCode != 200) Serial.println("[HTTP] PUSH \"" + String(df_name) + "\"... code: " + (String)httpCode + ", retry to register.");
     while (httpCode != 200){
         digitalWrite(LEDPIN, HIGH);
         httpCode = iottalk_register();
         if (httpCode == 200)  http.PUT(data);
         else delay(3000);
-    }    
+    }  
     return httpCode;
 }
 
@@ -263,8 +266,11 @@ void loop(void)
           test_v1_latency();
         }
       }
-      get_GPS();
-      Serial.println("PM2.5:"+read_pm25());
+      //get_GPS();
+      
+      //Serial.println(get_GPS( read_pm25()));
+      //Serial.println("PM2.5:"+read_pm25());
+      push("ESP12F_PM2.5",get_GPS( read_pm25()));
       push("ESP12F_IDF", String(ESP8266TrueRandom.random()%1000+1));
       cycleTimestamp = millis();
     }

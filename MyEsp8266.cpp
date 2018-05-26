@@ -269,64 +269,146 @@ String read_pm25(void) //get pm2.5 data
     pms.end();
     return (String)0;
 }
-String get_GPS(void)
+String get_GPS( String value)
 {
   long timeout = millis();
   char c;
   String result;
-  String 
-  String 
   bool find_flag = 0;
+  int i ,j ,next_comma,count;
+  String temp ;
+  int i_temp;
 
-
-  String Time, Date, Lat/* latitude經度*/ ,Lon/*longitude緯度*/;
+  String Time, Date, Date_Time, Lat/* latitude經度*/ ,Lon/*longitude緯度*/;
   GPS.begin(GPS_baudrate);
   while(millis() - timeout < 5000 ){
-    //read line from serial
-    c = GPS.read()
-    if(c == '$'){
+    c = GPS.read();
+    if(c == '$')
+    {
       find_flag = 1;
       result = "";
     }
-    else if (c == '\n'){
+    else if (c == '\n')
+    {
       find_flag = 0;
     }
 
     
-    if(find_flag  == 1){
+    if(find_flag  == 1)
+    {
       result += c;
     }
-    else if (find_flag == 0)
+    else if (find_flag == 0 && result.indexOf("GPRMC") != -1)
     {
-      //GPRMC
       
+      //                1         2 3         4 5          6 7     89      012
+      //result = "$GPRMC,055316.00,A,2447.22054,N,12059.81815,E,0.636,,100518,,,A*74";
+      Serial.println("result:"+result);
+      
+      // Time
+      next_comma = result.indexOf(','); // first comma, usually after $GPRMC
+      i = next_comma+1;
+      next_comma = result.indexOf(',',next_comma+1); //2nd comma
+      if (i == next_comma){
+        Serial.println("1 break");
+        break;
+      }
+      count = 0;
+      for ( i ; i < next_comma-3; i++,count++){
+        if(count==2 || count==4)
+          Time += ':';
+        Time += result[i];
+      }
+      temp = "";
+      temp =(String)Time[0]+(String)Time[1];
+      temp = (temp.toInt()+7 >=24?(temp.toInt()-17):(temp.toInt()+7));
+      Time[0]=temp[0];
+      Time[1]=temp[1];
+      temp="";
+
+      // Lon
+      next_comma = result.indexOf(',', next_comma+1);//3th comma, After A
+      i = next_comma+1;
+      next_comma = result.indexOf(',', next_comma+1); //4th , after Lon
+      if (i == next_comma){
+        Serial.println("2 break");
+        break;
+      }
+        
+      for (i; i<next_comma ;i++){
+        if(result[i] == '.'){}
+        else if(Lon.length() == 2){
+          Lon += '.';
+          Lon +=result[i];
+        }
+        else{
+          Lon +=result[i];
+        }
+      }
+      temp = "";
+      for(j=3; j < Lon.length(); j++)
+        temp += Lon[j];
+      temp = (String)(temp.toFloat()/60.0);
+      Lon ="24." +temp;
+      i_temp = Lon.indexOf('.',Lon.indexOf('.')+1);
+      Lon[i_temp]=Lon[i_temp+1];
+      Lon[i_temp+1]=Lon[i_temp+2];
+      
+      
+      //Lat
+      next_comma = result.indexOf(',', next_comma+1); //5th, after N
+      i = next_comma+1;
+      next_comma = result.indexOf(',', next_comma+1); //6th, after Lat
+      if (i == next_comma){
+        Serial.println("3 break");
+        break;
+      }
+      
+      for (i; i<next_comma ;i++){
+        if(result[i] == '.'){}
+        else if(Lat.length() == 3){
+          Lat += '.';
+          Lat +=result[i];
+        }
+        else{
+          Lat +=result[i];
+        }
+      }
+      
+      temp = "";
+      for(j=4; j < Lat.length(); j++)
+        temp += Lat[j];
+      Lat = "120.";
+      temp = (String)(temp.toInt()/60.0);
+      for(j=0; j<temp.length(); j++){
+        if(temp[j] != '.' ){
+          Lat += temp[j];
+        }
+      }
+      
+      
+      next_comma = result.indexOf(',', next_comma+1);//7th
+      next_comma = result.indexOf(',', next_comma+1);//8th
+      next_comma = result.indexOf(',', next_comma+1);//9th
+      i = next_comma+1;
+      next_comma = result.indexOf(',', next_comma+1);//10th
+      if (i == next_comma){
+        Serial.println("4 break");
+        break;
+      }
+        
+      for(i; i<next_comma; i++){
+        Date +=result[i];
+      }
+      Date_Time = "\"20"+Date.substring(4,6)+"-"+Date.substring(2,4)+"-"+Date.substring(0,2)+" "+Time+"\"";
+      GPS.end();
+      return(Lon+", "+Lat+", \"user1\", "+value+", "+Date_Time);
     }
-    
-    
-    Serial.print((char)GPS.read());
-    delay(10);
-    
+    delay(5);
   }
   GPS.end();
-
-  result = "$GPRMC,055316.00,A,2447.22054,N,12059.81815,E,0.636,,100518,,,A*74$GPRMC,055316.00,A,2447.22054,N,12059.81815,E,0.636,,100518,,,A*74";
-  
-  
+  return("24.787058, 120.997664, \"user1\", "+value+",\"2018-05-24 18:50:31\"");
 }
-//String get_pm25(void)
-//{
-//  pms.begin(pms_baudrate);
-//  while(1){
-//    pms.readBytes(pms5003,2);
-//    if(pms5003[0]==0x42 || pms5003[1]==0x4d){//尋找每段資料的開頭
-//      for(i=0;i<5;i++)
-//        pms.readBytes(pms5003,2);      
-//      break;
-//    }
-//  }
-//  esp.begin(esp_baudrate);
-//  return (String)pms5003[1];
-//}
 //void lcd_print(String Str,int column,int row)
 //{
 //  lcd.setCursor(column,row);
