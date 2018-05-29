@@ -71,7 +71,7 @@ void OLED_print(String mes);
 
 // sensor (pms3003, pms5003, dht22, dht11 )
 String read_pm25(void);
-String get_GPS(void);
+String get_GPS( String value);
 void lcd_print(String Str,int column,int row); //print word on lcd,column 0~15,row 0~1
 
 
