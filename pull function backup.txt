@@ -1,0 +1,70 @@
+String pull(char *df_name)
+{
+  /*
+   * pull one times
+   * the iottalk server will return a json format String
+   * eg.
+   * {
+   * "samples": [
+   *     [
+   *         "2018-05-03 13:34:21.050927",
+   *         [
+   *             1
+   *         ]
+   *     ],
+   *     [
+   *         "2018-05-03 13:34:20.588854",
+   *         [
+   *             2
+   *         ]
+   *     ]
+   *  ]
+   * }
+   * so,
+   * root["samples"][0][0] is the timestamp
+   * root["samples"][0][1] is the data we want
+   */
+  String get_ret_str;
+  int httpCode;
+  String temp_timestamp="";
+  String last_data = "";  //This last_data is used to fetch the timestamp.
+  DynamicJsonBuffer jsonBuffer;
+
+  http.begin( url + String(df_name) );
+  http.addHeader("Content-Type","application/json");
+  httpCode = http.GET(); //http state code
+  if (httpCode != 200) {
+    Serial.println("[HTTP] PULL \"" + String(df_name) + "\"... code: " + (String)httpCode + ", retry to register.");
+    return "___NULL_DATA___";
+  }
+  else{
+    get_ret_str = http.getString();  //After send GET request , store the return string
+    JsonObject& root = jsonBuffer.parseObject(get_ret_str);
+    if (get_ret_str.indexOf("samples") >=0){ // if not found the string , it will return -1
+      temp_timestamp = root["samples"][0][0].as<String>();
+
+      if (df_timestamp[DFindex(df_name)] != temp_timestamp){
+          df_timestamp[DFindex(df_name)] = temp_timestamp;
+          last_data = root["samples"][0][1].as<String>();
+          last_data[0] = ' ';
+          last_data[last_data.length()-1] = 0;
+          return last_data;   // return the data.
+       }
+       else return "___NULL_DATA___";
+  }
+  else return "___NULL_DATA___";
+  }
+  http.end();
+/*
+  while (httpCode != 200){
+      digitalWrite(LEDPIN, HIGH);
+      httpCode = iottalk_register();
+      if (httpCode == 200) http.GET();
+      else delay(3000);
+  }
+*/
+
+
+
+
+}
