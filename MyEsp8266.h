@@ -17,6 +17,7 @@
 #include "ESP8266TrueRandom.h" // uuid library
 #include "ESP8266HTTPClient2.h"
 #include "MyEsp8266.h"
+#include "DHT.h"
 #endif
 
 ///////////////////pin out////////////////////////////////////////////
@@ -27,6 +28,11 @@
 #define PMS_TX  14 //on nodemcu GPIO14 <---_ PMS_RXpin , no bird use
 #define PMS_RX  12 //on nodemcu GPIO12 <---> PMS_TXpin
 #define pms_baudrate  9600
+
+#define DHTPIN 10  //GPIO10
+#define DHTTYPE DHT11   // DHT 11
+//#define DHTTYPE DHT22   // DHT 22  (AM2302), AM2321
+//#define DHTTYPE DHT21   // DHT 21 (AM2301)
 
 #define GPS_TX  5 //on nodemcu GPIO14 <---_ PMS_RXpin , no bird use
 #define GPS_RX  4 //on nodemcu GPIO12 <---> PMS_TXpin

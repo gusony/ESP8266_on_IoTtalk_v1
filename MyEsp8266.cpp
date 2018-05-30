@@ -14,6 +14,7 @@
 #include "ESP8266TrueRandom.h" // uuid library
 #include "ESP8266HTTPClient2.h"
 #include "MyEsp8266.h"
+#include "DHT.h"
 #endif
 
 //#define SSD1306_IIC
@@ -30,7 +31,7 @@ uint8_t wifimode = 1; //1:AP , 0: STA
 
 SoftwareSerial pms(PMS_RX, PMS_TX);
 SoftwareSerial GPS(GPS_RX, GPS_TX);
-
+DHT dht(DHTPIN, DHTTYPE);
 
 //EEPROM//EEPROM
 void clr_eeprom(int sw)
@@ -319,6 +320,7 @@ String get_GPS( String value)
           Time += ':';
         Time += result[i];
       }
+      //fix the time to Taiwan's time zone
       temp = "";
       temp =(String)Time[0]+(String)Time[1];
       temp = (temp.toInt()+7 >=24?(temp.toInt()-17):(temp.toInt()+7));

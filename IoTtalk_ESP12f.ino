@@ -1,11 +1,12 @@
 #define DM_name  "ESP12F" 
-#define DF_list  {"ESP12F_IDF", "ESP12F_PM2.5", "ESP12F_ODF", "ESP12F_LED", "ESP12F_testlatency"}
+#define DF_list  {"ESP12F_IDF", "ESP12F_PM2.5","ESP12F_Temp","ESP12F_Humi", "ESP12F_ODF", "ESP12F_LED", "ESP12F_testlatency"}
 #define nODF     10  // The max number of ODFs which the DA can pull.
 #include "MyEsp8266.h"
 
 #define Nofp_time 1
 #define NofP 1000 // number of test packets
 
+extern DHT dht;
 extern Adafruit_SSD1306 display;
 extern char IoTtalkServerIP[100];
 HTTPClient http;
@@ -225,6 +226,7 @@ void setup(void)
   
     EEPROM.begin(512);
     Serial.begin(115200);
+    dht.begin();
     char wifissid[100]="";
     char wifipass[100]="";
     int statesCode = read_WiFi_AP_Info(wifissid, wifipass, IoTtalkServerIP);
@@ -266,11 +268,10 @@ void loop(void)
           test_v1_latency();
         }
       }
-      //get_GPS();
-      
-      //Serial.println(get_GPS( read_pm25()));
-      //Serial.println("PM2.5:"+read_pm25());
-      push("ESP12F_PM2.5",get_GPS( read_pm25()));
+
+      //push("ESP12F_Temp",get_GPS((String)dht.readHumidity()));
+      //push("ESP12F_Humi",get_GPS((String)dht.readTemperature()));
+      //push("ESP12F_PM2.5",get_GPS( read_pm25()));
       push("ESP12F_IDF", String(ESP8266TrueRandom.random()%1000+1));
       cycleTimestamp = millis();
     }
