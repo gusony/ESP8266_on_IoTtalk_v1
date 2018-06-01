@@ -23,7 +23,6 @@
 //#endif
 
 char IoTtalkServerIP[100] = "140.113.199.222"; // v1
-//char IoTtalkServerIP[100] = "140.113.199.198"; // v2
 ESP8266WebServer server ( 80 );
 WiFiClient espClient;
 PubSubClient client(espClient);
@@ -32,6 +31,8 @@ uint8_t wifimode = 1; //1:AP , 0: STA
 SoftwareSerial pms(PMS_RX, PMS_TX);
 SoftwareSerial GPS(GPS_RX, GPS_TX);
 DHT dht(DHTPIN, DHTTYPE);
+
+String last_valid_datetime="";
 
 //EEPROM//EEPROM
 void clr_eeprom(int sw)
@@ -279,6 +280,7 @@ String get_GPS( String value)
   int i ,j ,next_comma,count;
   String temp ;
   int i_temp;
+  String default_lon="24.787058", default_lat="120.997664";
 
   String Time, Date, Date_Time, Lat/* latitude經度*/ ,Lon/*longitude緯度*/;
   GPS.begin(GPS_baudrate);
@@ -302,7 +304,7 @@ String get_GPS( String value)
     else if (find_flag == 0 && result.indexOf("GPRMC") != -1)
     {
       
-      //                1         2 3         4 5          6 7     89      012
+      //                1         2 3          4 5           6 7     89      012
       //result = "$GPRMC,055316.00,A,2447.22054,N,12059.81815,E,0.636,,100518,,,A*74";
       Serial.println("result:"+result);
       
@@ -323,7 +325,7 @@ String get_GPS( String value)
       //fix the time to Taiwan's time zone
       temp = "";
       temp =(String)Time[0]+(String)Time[1];
-      temp = (temp.toInt()+7 >=24?(temp.toInt()-17):(temp.toInt()+7));
+      temp = (temp.toInt()+8 >=24?(temp.toInt()-17):(temp.toInt()+8));
       Time[0]=temp[0];
       Time[1]=temp[1];
       temp="";
@@ -332,10 +334,7 @@ String get_GPS( String value)
       next_comma = result.indexOf(',', next_comma+1);//3th comma, After A
       i = next_comma+1;
       next_comma = result.indexOf(',', next_comma+1); //4th , after Lon
-      if (i == next_comma){
-        Serial.println("2 break");
-        break;
-      }
+      
         
       for (i; i<next_comma ;i++){
         if(result[i] == '.'){}
@@ -347,24 +346,27 @@ String get_GPS( String value)
           Lon +=result[i];
         }
       }
-      temp = "";
-      for(j=3; j < Lon.length(); j++)
-        temp += Lon[j];
-      temp = (String)(temp.toFloat()/60.0);
-      Lon ="24." +temp;
-      i_temp = Lon.indexOf('.',Lon.indexOf('.')+1);
-      Lon[i_temp]=Lon[i_temp+1];
-      Lon[i_temp+1]=Lon[i_temp+2];
+      if(Lon.length() ==0)
+      {
+        Lon = default_lon;
+      }
+      else{
+        temp = "";
+        for(j=3; j < Lon.length(); j++)
+          temp += Lon[j];
+        temp = (String)(temp.toFloat()/60.0);
+        Lon ="24." +temp;
+        i_temp = Lon.indexOf('.',Lon.indexOf('.')+1);
+        Lon[i_temp]=Lon[i_temp+1];
+        Lon[i_temp+1]=Lon[i_temp+2];
+      }
       
       
       //Lat
       next_comma = result.indexOf(',', next_comma+1); //5th, after N
       i = next_comma+1;
       next_comma = result.indexOf(',', next_comma+1); //6th, after Lat
-      if (i == next_comma){
-        Serial.println("3 break");
-        break;
-      }
+      
       
       for (i; i<next_comma ;i++){
         if(result[i] == '.'){}
@@ -376,17 +378,22 @@ String get_GPS( String value)
           Lat +=result[i];
         }
       }
-      
-      temp = "";
-      for(j=4; j < Lat.length(); j++)
-        temp += Lat[j];
-      Lat = "120.";
-      temp = (String)(temp.toInt()/60.0);
-      for(j=0; j<temp.length(); j++){
-        if(temp[j] != '.' ){
-          Lat += temp[j];
+      if(Lat.length() == 0){
+        Lat = default_lat;
+      }
+      else{
+        temp = "";
+        for(j=4; j < Lat.length(); j++)
+          temp += Lat[j];
+        Lat = "120.";
+        temp = (String)(temp.toInt()/60.0);
+        for(j=0; j<temp.length(); j++){
+          if(temp[j] != '.' ){
+            Lat += temp[j];
+          }
         }
       }
+      
       
       
       next_comma = result.indexOf(',', next_comma+1);//7th
@@ -402,14 +409,18 @@ String get_GPS( String value)
       for(i; i<next_comma; i++){
         Date +=result[i];
       }
+      if(Date.length()!=6)
+        break;
+        
       Date_Time = "\"20"+Date.substring(4,6)+"-"+Date.substring(2,4)+"-"+Date.substring(0,2)+" "+Time+"\"";
+      last_valid_datetime = Date_Time;
       GPS.end();
       return(Lon+", "+Lat+", \"user1\", "+value+", "+Date_Time);
     }
     delay(5);
   }
   GPS.end();
-  return("24.787058, 120.997664, \"user1\", "+value+",\"2018-05-24 18:50:31\"");
+  return("24.787058, 120.997664, \"user1\", "+value+","+last_valid_datetime+"");
 }
 //void lcd_print(String Str,int column,int row)
 //{

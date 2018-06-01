@@ -1,5 +1,5 @@
 #define DM_name  "ESP12F" 
-#define DF_list  {"ESP12F_IDF", "ESP12F_PM2.5","ESP12F_Temp","ESP12F_Humi", "ESP12F_ODF", "ESP12F_LED", "ESP12F_testlatency"}
+#define DF_list  {"ESP12F_IDF", "ESP12F_PM2.5","ESP12F_Temp","ESP12F_Humi", "ESP12F_testlatency", "ESP12F_ODF", "ESP12F_LED"}
 #define nODF     10  // The max number of ODFs which the DA can pull.
 #include "MyEsp8266.h"
 
@@ -9,18 +9,18 @@
 extern DHT dht;
 extern Adafruit_SSD1306 display;
 extern char IoTtalkServerIP[100];
+
 HTTPClient http;
 String url = "";
 String df_name_list[nODF];
 String df_timestamp[nODF];
 long cycleTimestamp;
-String result;
-
+String result, Humidity, Temperature;
 
 int iottalk_register(void)
 {
-    url = "http://" + String(IoTtalkServerIP) + ":9999/";  
-    
+    url = "http://" + String(IoTtalkServerIP) + ":9999/";
+
     String df_list[] = DF_list;
     int n_of_DF = sizeof(df_list)/sizeof(df_list[0]); // the number of DFs in the DF_list
     String DFlist = ""; 
@@ -90,8 +90,14 @@ int push(char *df_name, String value)
     //Serial.println(url + String(df_name));
     //Serial.println(data);
     int httpCode = http.PUT(data);
+
+    if(httpCode == 400 ){
+      Serial.println("[HTTP] PUSH \"" + String(df_name) + "\"... code: " + (String)httpCode + ", Bad Request, format error");
+    }
+    else if (httpCode != 200) {
+      Serial.println("[HTTP] PUSH \"" + String(df_name) + "\"... code: " + (String)httpCode + ", retry to register.");
+    }
     
-    if (httpCode != 200) Serial.println("[HTTP] PUSH \"" + String(df_name) + "\"... code: " + (String)httpCode + ", retry to register.");
     while (httpCode != 200){
         digitalWrite(LEDPIN, HIGH);
         httpCode = iottalk_register();
@@ -255,25 +261,38 @@ void setup(void)
 
 void loop(void)
 {
-    if (digitalRead(CLEAREEPROM) == LOW){
-        clr_eeprom(0);
-    }
-
-    
-
-    if (millis() - cycleTimestamp > 1000) {
-      result = pull("ESP12F_testlatency");
-      if (result != "___NULL_DATA___"){
-        if (result.toInt() == 0) {
-          test_v1_latency();
-        }
+  if (digitalRead(CLEAREEPROM) == LOW){
+      clr_eeprom(0);
+  }
+  
+  if (millis() - cycleTimestamp > 1000) {
+    result = pull("ESP12F_testlatency");
+    if (result != "___NULL_DATA___"){
+      if (result.toInt() == 0) {
+        test_v1_latency();
       }
-
-      //push("ESP12F_Temp",get_GPS((String)dht.readHumidity()));
-      //push("ESP12F_Humi",get_GPS((String)dht.readTemperature()));
-      //push("ESP12F_PM2.5",get_GPS( read_pm25()));
-      push("ESP12F_IDF", String(ESP8266TrueRandom.random()%1000+1));
-      cycleTimestamp = millis();
     }
+  
+    Temperature = (String)dht.readTemperature()!="nan"? (String)dht.readTemperature():Temperature;
+    String push_data = get_GPS(Temperature);
+    Serial.println("[ESP12F_Temp]"+push_data);
+    push("ESP12F_Temp",push_data);
+    delay(500);
+  
+    Humidity = (String)dht.readHumidity()!="nan"?(String)dht.readHumidity():Humidity;
+    push_data = get_GPS(Humidity);
+    Serial.println("[ESP12F_Humi]"+push_data);
+    push("ESP12F_Humi",push_data);
+    delay(500);
+  
+  
+    push_data = get_GPS(read_pm25());
+    Serial.println("[ESP12F_PM2.5]"+push_data);
+    push("ESP12F_PM2.5",push_data);
+    delay(500);
+  
+    push("ESP12F_IDF", String(ESP8266TrueRandom.random()%1000+1));
+    cycleTimestamp = millis();
+  }
 
 }
