@@ -16,6 +16,7 @@ String df_name_list[nODF];
 String df_timestamp[nODF];
 long cycleTimestamp;
 String result, Humidity, Temperature;
+int continue_error_quota = 10;
 
 int iottalk_register(void)
 {
@@ -87,23 +88,36 @@ int push(char *df_name, String value)
     http.begin( url + String(df_name));
     http.addHeader("Content-Type","application/json");
     String data = "{\"data\":[" + value + "]}";
-    //Serial.println(url + String(df_name));
-    //Serial.println(data);
     int httpCode = http.PUT(data);
 
-    if(httpCode == 400 ){
-      Serial.println("[HTTP] PUSH \"" + String(df_name) + "\"... code: " + (String)httpCode + ", Bad Request, format error");
+    
+    if (httpCode != 200) {
+      continue_error_quota--;
+      Serial.print("[HTTP] PUSH \"" + String(df_name) + "\"... code: " + (String)httpCode );
+
+      if(httpCode == 400 ){
+        Serial.print(", Bad Request, format error");
+      }
+      
+      if(continue_error_quota <= 0){
+        Serial.println(" retry to register");
+        continue_error_quota = 10;
+        while (httpCode != 200){
+          httpCode = iottalk_register();
+          
+          if (httpCode == 200)  
+            http.PUT(data);
+          else 
+            delay(3000);
+        }  
+      }
+      Serial.println();
     }
-    else if (httpCode != 200) {
-      Serial.println("[HTTP] PUSH \"" + String(df_name) + "\"... code: " + (String)httpCode + ", retry to register.");
+    else{
+      continue_error_quota = 10;
     }
     
-    while (httpCode != 200){
-        digitalWrite(LEDPIN, HIGH);
-        httpCode = iottalk_register();
-        if (httpCode == 200)  http.PUT(data);
-        else delay(3000);
-    }  
+    
     return httpCode;
 }
 
@@ -266,12 +280,7 @@ void loop(void)
   }
   
   if (millis() - cycleTimestamp > 1000) {
-    result = pull("ESP12F_testlatency");
-    if (result != "___NULL_DATA___"){
-      if (result.toInt() == 0) {
-        test_v1_latency();
-      }
-    }
+    
   
     Temperature = (String)dht.readTemperature()!="nan"? (String)dht.readTemperature():Temperature;
     String push_data = get_GPS(Temperature);
@@ -289,9 +298,18 @@ void loop(void)
     push_data = get_GPS(read_pm25());
     Serial.println("[ESP12F_PM2.5]"+push_data);
     push("ESP12F_PM2.5",push_data);
-    delay(500);
+    
   
     push("ESP12F_IDF", String(ESP8266TrueRandom.random()%1000+1));
+    delay(500);
+    
+    result = pull("ESP12F_testlatency");
+    if (result != "___NULL_DATA___"){
+      if (result.toInt() == 0) {
+        test_v1_latency();
+      }
+    }
+    
     cycleTimestamp = millis();
   }
 
