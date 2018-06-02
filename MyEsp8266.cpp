@@ -276,22 +276,22 @@ String read_pm25(void) //get pm2.5 data
     pms.end();
     return (String)0;
 }
-String sim_lon(String lon)
+void sim_lon()
 {
-  float f_lon = (lon[0]-48)*10+(lon[1]-48)+
-                (lon[3]-48)*0.1+(lon[4]-48)*0.01+(lon[5]-48)*0.001+
-                (lon[6]-48)*0.0001+(lon[7]-48)*0.00001+(lon[8]-48)*0.000001;
+  float f_lon = (LV_lon[0]-48)*10+(LV_lon[1]-48)+
+                (LV_lon[3]-48)*0.1+(LV_lon[4]-48)*0.01+(LV_lon[5]-48)*0.001+
+                (LV_lon[6]-48)*0.0001+(LV_lon[7]-48)*0.00001+(LV_lon[8]-48)*0.000001;
   
-  f_lon += (ESP8266TrueRandom.random()%3-1) * 0.00001;
-  return(String(f_lon,6));
+  f_lon += (ESP8266TrueRandom.random()%11-5) * 0.00001;
+  LV_lon = String(f_lon,6);
 }
-String sim_lat(String lat)
+void sim_lat()
 {
-  float f_lat = (lat[0]-48)*100+(lat[1]-48)*10+(lat[2]-48)+
-                (lat[4]-48)*0.1+(lat[5]-48)*0.01+(lat[6]-48)*0.001+
-                (lat[7]-48)*0.0001+(lat[8]-48)*0.00001+(lat[9]-48)*0.000001;
-  f_lat += (ESP8266TrueRandom.random()%3-1) * 0.00001;
-  return(String(f_lat,6));
+  float f_lat = (LV_lat[0]-48)*100+(LV_lat[1]-48)*10+(LV_lat[2]-48)+
+                (LV_lat[4]-48)*0.1+(LV_lat[5]-48)*0.01+(LV_lat[6]-48)*0.001+
+                (LV_lat[7]-48)*0.0001+(LV_lat[8]-48)*0.00001+(LV_lat[9]-48)*0.000001;
+  f_lat += (ESP8266TrueRandom.random()%11-5) * 0.00001;
+  LV_lat = String(f_lat,6);
 }
 String get_GPS( String value)
 {
@@ -326,18 +326,22 @@ String get_GPS( String value)
     {
       
       //                1         2 3          4 5           6 7     89      012
-      //result = "$GPRMC,055316.00,A,2447.22054,N,12059.81815,E,0.636,,100518,,,A*74";
+      //result = "$GPRMC,135356.00,A,2447.22054,N,12059.81815,E,0.636,,020618,,,A*74";
       Serial.println("result:"+result);
       
       // Time
       next_comma = result.indexOf(','); // first comma, usually after $GPRMC
       i = next_comma+1;
       next_comma = result.indexOf(',',next_comma+1); //2nd comma
-      if (i != next_comma){ //gps receive time
-        count = 0;
-        for ( i ; i < next_comma-3; i++,count++){
-          if(count==2 || count==4)
+      
+      if (next_comma - i == 9)//gps receive time
+      { 
+        for ( i ; i < next_comma-3; i++)
+        {
+          if(Time.length() == 2 || Time.length() == 5)
+          {
             Time += ':';
+          }
           Time += result[i];
         }
         
@@ -350,49 +354,57 @@ String get_GPS( String value)
         temp="";
       }
       
+      
 
       // Lon
       next_comma = result.indexOf(',', next_comma+1);//3th comma, After A
       i = next_comma+1;
       next_comma = result.indexOf(',', next_comma+1); //4th , after Lon
       
-        
-      for (i; i<next_comma ;i++){
-        if(result[i] == '.'){}
-        else if(Lon.length() == 2){
-          Lon += '.';
-          Lon +=result[i];
-        }
-        else{
-          Lon +=result[i];
-        }
-      }
-      if(Lon.length() ==0)
+      if(next_comma - i ==  10) //get current lon data
       {
-        Lon = sim_lon(LV_lon);
-      }
-      else{
+        Serial.println("receive lon");
+        for (i; i<next_comma ;i++){
+          if(result[i] == '.'){}
+          else if(Lon.length() == 2){
+            Lon += '.';
+            Lon +=result[i];
+          }
+          else{
+            Lon +=result[i];
+          }
+        }
+
         temp = "";
         for(j=3; j < Lon.length(); j++)
+        {
           temp += Lon[j];
+        }
         temp = (String)(temp.toFloat()/60.0);
         Lon ="24." +temp;
         i_temp = Lon.indexOf('.',Lon.indexOf('.')+1);
         Lon[i_temp]=Lon[i_temp+1];
         Lon[i_temp+1]=Lon[i_temp+2];
+        Serial.println("in current , lon="+Lon);
+        LV_lon = Lon;
       }
+      else //not current lon data
+      {
+        sim_lon();
+        Lon = LV_lon;
+      }
+
       
-      
-      //Lat
       next_comma = result.indexOf(',', next_comma+1); //5th, after N
       i = next_comma+1;
       next_comma = result.indexOf(',', next_comma+1); //6th, after Lat
       
-      if(i == next_comma){
-        Lat = sim_lat(LV_lat);
-      }
-      else {
-        //take out lat from result
+      
+      //Lat
+      if(next_comma - i == 11)
+      {
+         //take out lat from result
+        Serial.println("receive lat");
         for (i; i<next_comma ;i++){
           if(result[i] == '.'){}
           else if(Lat.length() == 3){
@@ -407,17 +419,23 @@ String get_GPS( String value)
         // convert lat
         temp = "";
         for(j=4; j < Lat.length(); j++)
+        {
           temp += Lat[j];
+        }
         Lat = "120.";
         temp = (String)(temp.toInt()/60.0);
-        for(j=0; j<temp.length(); j++){
-          if(temp[j] != '.' ){
+        for(j=0; j<temp.length(); j++)
+        {
+          if(temp[j] != '.' )
+          {
             Lat += temp[j];
           }
         }
       }
-      LV_lat = Lat;
-      
+      else{
+        sim_lat();
+        Lat = LV_lat;
+      }
       
       
       next_comma = result.indexOf(',', next_comma+1);//7th
@@ -425,20 +443,22 @@ String get_GPS( String value)
       next_comma = result.indexOf(',', next_comma+1);//9th
       i = next_comma+1;
       next_comma = result.indexOf(',', next_comma+1);//10th
+
+      //Date
       
-      if (i == next_comma){// gps module not receive the data
-        Serial.println("4 break");
-        break;
+      if(next_comma - i ==6)
+      {
+        for(i; i<next_comma; i++){
+          Date +=result[i];
+        }
+        Date_Time = "\"20"+Date.substring(4,6)+"-"+Date.substring(2,4)+"-"+Date.substring(0,2)+" "+Time+"\"";
+        LV_datetime = Date_Time;
       }
-  
-      for(i; i<next_comma; i++){
-        Date +=result[i];
+      else
+      {
+        Date_Time = LV_datetime;
       }
-      if(Date.length()!=6) // gps module receive the data ,but it is wrong
-        break;
-        
-      Date_Time = "\"20"+Date.substring(4,6)+"-"+Date.substring(2,4)+"-"+Date.substring(0,2)+" "+Time+"\"";
-      LV_datetime = Date_Time;
+      
       GPS.end();
       return(Lon+", "+Lat+", \"user1\", "+value+", "+Date_Time);
     }
