@@ -32,7 +32,9 @@ SoftwareSerial pms(PMS_RX, PMS_TX);
 SoftwareSerial GPS(GPS_RX, GPS_TX);
 DHT dht(DHTPIN, DHTTYPE);
 
-String last_valid_datetime="";
+// LV : last valid
+String LV_datetime="";
+String LV_lon="24.787179", LV_lat="120.997312"; 
 
 //EEPROM//EEPROM
 void clr_eeprom(int sw)
@@ -99,7 +101,7 @@ int  read_WiFi_AP_Info(char *wifiSSID, char *wifiPASS, char *ServerIP) // storag
     return 0;
 }
 
-//server ,ap mode//server ,ap mode
+//server ,ap mode
 String scan_network(void)
 {
     int AP_N,i;  //AP_N: AP number
@@ -233,22 +235,25 @@ void saveInfoAndConnectToWiFi(void)
     }
 }
 
-//void init_ssd1306(void)
-//{
-//  display.begin(SSD1306_SWITCHCAPVCC);
-//  display.clearDisplay();
-//  delay(1000);
-//  display.setTextSize(1); //21 char in one line with Textsize == 1 ,10 char with size 2
-//  display.setTextColor(WHITE);
-//  display.display();
-//}
-//void OLED_print(String mes)
-//{
-//  display.clearDisplay();
-//  display.setCursor(0,0);
-//  display.print(mes);
-//  display.display();
-//}
+/*
+void init_ssd1306(void)
+{
+  display.begin(SSD1306_SWITCHCAPVCC);
+  display.clearDisplay();
+  delay(1000);
+  display.setTextSize(1); //21 char in one line with Textsize == 1 ,10 char with size 2
+  display.setTextColor(WHITE);
+  display.display();
+}
+void OLED_print(String mes)
+{
+  display.clearDisplay();
+  display.setCursor(0,0);
+  display.print(mes);
+  display.display();
+}
+*/
+
 
 String read_pm25(void) //get pm2.5 data
 {
@@ -271,6 +276,23 @@ String read_pm25(void) //get pm2.5 data
     pms.end();
     return (String)0;
 }
+String sim_lon(String lon)
+{
+  float f_lon = (lon[0]-48)*10+(lon[1]-48)+
+                (lon[3]-48)*0.1+(lon[4]-48)*0.01+(lon[5]-48)*0.001+
+                (lon[6]-48)*0.0001+(lon[7]-48)*0.00001+(lon[8]-48)*0.000001;
+  
+  f_lon += (ESP8266TrueRandom.random()%3-1) * 0.00001;
+  return(String(f_lon,6));
+}
+String sim_lat(String lat)
+{
+  float f_lat = (lat[0]-48)*100+(lat[1]-48)*10+(lat[2]-48)+
+                (lat[4]-48)*0.1+(lat[5]-48)*0.01+(lat[6]-48)*0.001+
+                (lat[7]-48)*0.0001+(lat[8]-48)*0.00001+(lat[9]-48)*0.000001;
+  f_lat += (ESP8266TrueRandom.random()%3-1) * 0.00001;
+  return(String(f_lat,6));
+}
 String get_GPS( String value)
 {
   long timeout = millis();
@@ -280,7 +302,6 @@ String get_GPS( String value)
   int i ,j ,next_comma,count;
   String temp ;
   int i_temp;
-  String default_lon="24.787058", default_lat="120.997664";
 
   String Time, Date, Date_Time, Lat/* latitude經度*/ ,Lon/*longitude緯度*/;
   GPS.begin(GPS_baudrate);
@@ -312,23 +333,23 @@ String get_GPS( String value)
       next_comma = result.indexOf(','); // first comma, usually after $GPRMC
       i = next_comma+1;
       next_comma = result.indexOf(',',next_comma+1); //2nd comma
-      if (i == next_comma){
-        Serial.println("1 break");
-        break;
+      if (i != next_comma){ //gps receive time
+        count = 0;
+        for ( i ; i < next_comma-3; i++,count++){
+          if(count==2 || count==4)
+            Time += ':';
+          Time += result[i];
+        }
+        
+        //fix the time to Taiwan's time zone
+        temp = "";
+        temp =(String)Time[0]+(String)Time[1];
+        temp = (temp.toInt()+8 >=24?(temp.toInt()-17):(temp.toInt()+8));
+        Time[0]=temp[0];
+        Time[1]=temp[1];
+        temp="";
       }
-      count = 0;
-      for ( i ; i < next_comma-3; i++,count++){
-        if(count==2 || count==4)
-          Time += ':';
-        Time += result[i];
-      }
-      //fix the time to Taiwan's time zone
-      temp = "";
-      temp =(String)Time[0]+(String)Time[1];
-      temp = (temp.toInt()+8 >=24?(temp.toInt()-17):(temp.toInt()+8));
-      Time[0]=temp[0];
-      Time[1]=temp[1];
-      temp="";
+      
 
       // Lon
       next_comma = result.indexOf(',', next_comma+1);//3th comma, After A
@@ -348,7 +369,7 @@ String get_GPS( String value)
       }
       if(Lon.length() ==0)
       {
-        Lon = default_lon;
+        Lon = sim_lon(LV_lon);
       }
       else{
         temp = "";
@@ -367,21 +388,23 @@ String get_GPS( String value)
       i = next_comma+1;
       next_comma = result.indexOf(',', next_comma+1); //6th, after Lat
       
-      
-      for (i; i<next_comma ;i++){
-        if(result[i] == '.'){}
-        else if(Lat.length() == 3){
-          Lat += '.';
-          Lat +=result[i];
-        }
-        else{
-          Lat +=result[i];
-        }
+      if(i == next_comma){
+        Lat = sim_lat(LV_lat);
       }
-      if(Lat.length() == 0){
-        Lat = default_lat;
-      }
-      else{
+      else {
+        //take out lat from result
+        for (i; i<next_comma ;i++){
+          if(result[i] == '.'){}
+          else if(Lat.length() == 3){
+            Lat += '.';
+            Lat +=result[i];
+          }
+          else{
+            Lat +=result[i];
+          }
+        }
+
+        // convert lat
         temp = "";
         for(j=4; j < Lat.length(); j++)
           temp += Lat[j];
@@ -393,6 +416,7 @@ String get_GPS( String value)
           }
         }
       }
+      LV_lat = Lat;
       
       
       
@@ -401,26 +425,27 @@ String get_GPS( String value)
       next_comma = result.indexOf(',', next_comma+1);//9th
       i = next_comma+1;
       next_comma = result.indexOf(',', next_comma+1);//10th
-      if (i == next_comma){
+      
+      if (i == next_comma){// gps module not receive the data
         Serial.println("4 break");
         break;
       }
-        
+  
       for(i; i<next_comma; i++){
         Date +=result[i];
       }
-      if(Date.length()!=6)
+      if(Date.length()!=6) // gps module receive the data ,but it is wrong
         break;
         
       Date_Time = "\"20"+Date.substring(4,6)+"-"+Date.substring(2,4)+"-"+Date.substring(0,2)+" "+Time+"\"";
-      last_valid_datetime = Date_Time;
+      LV_datetime = Date_Time;
       GPS.end();
       return(Lon+", "+Lat+", \"user1\", "+value+", "+Date_Time);
     }
     delay(5);
   }
   GPS.end();
-  return("24.787058, 120.997664, \"user1\", "+value+","+last_valid_datetime+"");
+  return(Lon+", "+Lat+", \"user1\", "+value+","+LV_datetime+"");
 }
 //void lcd_print(String Str,int column,int row)
 //{
