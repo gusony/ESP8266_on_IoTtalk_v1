@@ -363,7 +363,6 @@ String get_GPS( String value)
       
       if(next_comma - i ==  10) //get current lon data
       {
-        Serial.println("receive lon");
         for (i; i<next_comma ;i++){
           if(result[i] == '.'){}
           else if(Lon.length() == 2){
@@ -385,11 +384,11 @@ String get_GPS( String value)
         i_temp = Lon.indexOf('.',Lon.indexOf('.')+1);
         Lon[i_temp]=Lon[i_temp+1];
         Lon[i_temp+1]=Lon[i_temp+2];
-        Serial.println("in current , lon="+Lon);
         LV_lon = Lon;
       }
       else //not current lon data
       {
+        Serial.println("sim lon");
         sim_lon();
         Lon = LV_lon;
       }
@@ -404,7 +403,6 @@ String get_GPS( String value)
       if(next_comma - i == 11)
       {
          //take out lat from result
-        Serial.println("receive lat");
         for (i; i<next_comma ;i++){
           if(result[i] == '.'){}
           else if(Lat.length() == 3){
@@ -433,6 +431,7 @@ String get_GPS( String value)
         }
       }
       else{
+        Serial.println("sim lat");
         sim_lat();
         Lat = LV_lat;
       }
