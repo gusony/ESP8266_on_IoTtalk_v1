@@ -457,9 +457,10 @@ String get_GPS( String value)
       {
         Date_Time = LV_datetime;
       }
-      
-      GPS.end();
-      return(Lon+", "+Lat+", \"user1\", "+value+", "+Date_Time);
+
+      break;
+//      GPS.end();
+//      return(Lon+", "+Lat+", \"user1\", "+value+", "+Date_Time);
     }
     delay(5);
   }
