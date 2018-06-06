@@ -17,10 +17,10 @@
 #include "DHT.h"
 #endif
 
-//#define SSD1306_IIC
-//#ifdef SSD1306_IIC  //SSD1306 with IIC
-//Adafruit_SSD1306 display(OLED_RESET);
-//#endif
+#define SSD1306_IIC
+#ifdef SSD1306_IIC  //SSD1306 with IIC
+Adafruit_SSD1306 display(OLED_RESET);
+#endif
 
 char IoTtalkServerIP[100] = "140.113.199.222"; // v1
 ESP8266WebServer server ( 80 );
@@ -34,7 +34,7 @@ DHT dht(DHTPIN, DHTTYPE);
 
 // LV : last valid
 String LV_datetime="";
-String LV_lon="24.787179", LV_lat="120.997312"; 
+String LV_lon="24.787194", LV_lat="120.997285"; 
 
 //EEPROM//EEPROM
 void clr_eeprom(int sw)
@@ -220,7 +220,7 @@ void saveInfoAndConnectToWiFi(void)
       server.arg(0).toCharArray(_SSID_,sizeof(_SSID_));
       server.arg(1).toCharArray(_PASS_,sizeof(_PASS_));
       server.arg(2).toCharArray(IoTtalkServerIP,100);
-      server.send(200, "text/html", "ok");
+      //server.send(200, "text/html", "ok");
       server.stop();
       Serial.print("[");
       Serial.print(_SSID_);
@@ -235,7 +235,7 @@ void saveInfoAndConnectToWiFi(void)
     }
 }
 
-/*
+
 void init_ssd1306(void)
 {
   display.begin(SSD1306_SWITCHCAPVCC);
@@ -252,7 +252,7 @@ void OLED_print(String mes)
   display.print(mes);
   display.display();
 }
-*/
+
 
 
 String read_pm25(void) //get pm2.5 data
@@ -302,7 +302,9 @@ String get_GPS( String value)
   int i ,j ,next_comma,count;
   String temp ;
   int i_temp;
-
+  int flag_lon=0,flag_lat=0;
+  String show_on_OLED="";
+  
   String Time, Date, Date_Time, Lat/* latitude經度*/ ,Lon/*longitude緯度*/;
   GPS.begin(GPS_baudrate);
   while(millis() - timeout < 5000 ){
@@ -363,6 +365,7 @@ String get_GPS( String value)
       
       if(next_comma - i ==  10) //get current lon data
       {
+        flag_lon = 1;
         for (i; i<next_comma ;i++){
           if(result[i] == '.'){}
           else if(Lon.length() == 2){
@@ -388,8 +391,9 @@ String get_GPS( String value)
       }
       else //not current lon data
       {
-        Serial.println("sim lon");
-        sim_lon();
+        flag_lon =0;
+        //Serial.println("sim lon");
+        //sim_lon();
         Lon = LV_lon;
       }
 
@@ -402,6 +406,7 @@ String get_GPS( String value)
       //Lat
       if(next_comma - i == 11)
       {
+        flag_lat = 1;
          //take out lat from result
         for (i; i<next_comma ;i++){
           if(result[i] == '.'){}
@@ -431,8 +436,9 @@ String get_GPS( String value)
         }
       }
       else{
-        Serial.println("sim lat");
-        sim_lat();
+        flag_lat = 0;
+        //Serial.println("sim lat");
+        //sim_lat();
         Lat = LV_lat;
       }
       
@@ -465,6 +471,20 @@ String get_GPS( String value)
     delay(5);
   }
   GPS.end();
+
+  show_on_OLED = LV_datetime+"\n";
+  if(flag_lon) 
+    show_on_OLED += Lon+",";
+  else
+    show_on_OLED += "no lon,";
+
+  if(flag_lat) 
+    show_on_OLED += Lat+"\n";
+  else
+    show_on_OLED += "no lat";
+
+  
+  OLED_print(show_on_OLED);
   return(Lon+", "+Lat+", \"user1\", "+value+","+LV_datetime+"");
 }
 //void lcd_print(String Str,int column,int row)

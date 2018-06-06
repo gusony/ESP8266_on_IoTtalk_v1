@@ -25,26 +25,27 @@
 #define LEDPIN       2  // on board led
 #define CLEAREEPROM  13 //hold for 5 second , it will erease the contain in eeprom
 
-#define PMS_TX  14 //on nodemcu GPIO14 <---_ PMS_RXpin , no bird use
-#define PMS_RX  12 //on nodemcu GPIO12 <---> PMS_TXpin
+#define PMS_TX  14        //GPIO14 on nodemcu <---> PMS_RXpin , no bird use
+#define PMS_RX  12        //GPIO12 on nodemcu <---> PMS_TXpin
 #define pms_baudrate  9600
 
-#define DHTPIN 10  //GPIO10
-#define DHTTYPE DHT11   // DHT 11
+#define DHTPIN 10         // GPIO10
+#define DHTTYPE DHT11     // DHT 11
 //#define DHTTYPE DHT22   // DHT 22  (AM2302), AM2321
 //#define DHTTYPE DHT21   // DHT 21 (AM2301)
 
-#define GPS_TX  5 //on nodemcu GPIO14 <---_ PMS_RXpin , no bird use
-#define GPS_RX  4 //on nodemcu GPIO12 <---> PMS_TXpin
+#define GPS_TX  2         // GPIO0 on nodemcu <---> GPS_RXpin , no bird use
+#define GPS_RX  0         // GPIO2 on nodemcu <---> GPS_TXpin
 #define GPS_baudrate  9600
 
-//#define SSD1306_IIC  //SSC1307 use I2C
+#define SSD1306_IIC  //SSC1307 use I2C
 #ifdef SSD1306_IIC   
 #define OLED_RESET 3 //reset pin will not be used, just for declare
 #define OLED_SDA   4 //SDA:04, SCL:05 :those two pin are on board
 #define OLED_CLK   5 //but those two define will not be used
 #endif
 
+/*
 #ifdef  SSD1306_SPI  //SSD1306 with SPI
   #define OLED_MOSI  13   //D1 on SSD1306
   #define OLED_CLK   14   //D0 on SSD1306
@@ -53,6 +54,7 @@
   #define OLED_RESET 16
   //Adafruit_SSD1306 display(OLED_MOSI, OLED_CLK, OLED_DC, OLED_RESET, OLED_CS);
 #endif
+*/
 ///////////////////pin out////////////////////////////////////////////
 
 //EEPROM

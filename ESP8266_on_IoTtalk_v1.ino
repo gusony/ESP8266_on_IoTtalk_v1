@@ -242,11 +242,13 @@ void setup(void)
     digitalWrite(16,LOW);
     randomSeed(analogRead(0));
   
-    //init_ssd1306();
+    init_ssd1306();
   
     EEPROM.begin(512);
     Serial.begin(115200);
     dht.begin();
+
+    OLED_print("hello world");
     char wifissid[100]="";
     char wifipass[100]="";
     int statesCode = read_WiFi_AP_Info(wifissid, wifipass, IoTtalkServerIP);
@@ -283,12 +285,14 @@ void loop(void)
     
   
     Temperature = (String)dht.readTemperature()!="nan"? (String)dht.readTemperature():Temperature;
+    Temperature = "25.00";
     String push_data = get_GPS(Temperature);
     Serial.println("[ESP12F_Temp]"+push_data);
     push("ESP12F_Temp",push_data);
     delay(500);
   
-    Humidity = (String)dht.readHumidity()!="nan"?(String)dht.readHumidity():Humidity;
+    //Humidity = (String)dht.readHumidity()!="nan"?(String)dht.readHumidity():Humidity;
+    Humidity = "50.00";
     push_data = get_GPS(Humidity);
     Serial.println("[ESP12F_Humi]"+push_data);
     push("ESP12F_Humi",push_data);
