@@ -21,11 +21,11 @@
 #endif
 
 ///////////////////pin out////////////////////////////////////////////
-#define UPLOAD       0  // when you want to upload code to esp8266, this pin must be LOW
+#define UPLOAD       0  // when you want to upload code to esp8266, this pin must be LOW, will not be used on Nodemcu
 #define LEDPIN       2  // on board led
 #define CLEAREEPROM  13 //hold for 5 second , it will erease the contain in eeprom
 
-#define PMS_TX  14        //GPIO14 on nodemcu <---> PMS_RXpin , no bird use
+#define PMS_TX  NULL        //GPIO14 on nodemcu <---> PMS_RXpin , no bird use
 #define PMS_RX  12        //GPIO12 on nodemcu <---> PMS_TXpin
 #define pms_baudrate  9600
 

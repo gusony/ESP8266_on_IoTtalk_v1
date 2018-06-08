@@ -15,7 +15,7 @@ String url = "";
 String df_name_list[nODF];
 String df_timestamp[nODF];
 long cycleTimestamp;
-String result, Humidity, Temperature;
+String result, Humidity, Temperature, pm25;
 int continue_error_quota = 10;
 
 int iottalk_register(void)
@@ -285,28 +285,27 @@ void loop(void)
     
   
     Temperature = (String)dht.readTemperature()!="nan"? (String)dht.readTemperature():Temperature;
-    Temperature = "25.00";
     String push_data = get_GPS(Temperature);
     Serial.println("[ESP12F_Temp]"+push_data);
     push("ESP12F_Temp",push_data);
     delay(500);
   
-    //Humidity = (String)dht.readHumidity()!="nan"?(String)dht.readHumidity():Humidity;
-    Humidity = "50.00";
+    Humidity = (String)dht.readHumidity()!="nan"?(String)dht.readHumidity():Humidity;
     push_data = get_GPS(Humidity);
     Serial.println("[ESP12F_Humi]"+push_data);
     push("ESP12F_Humi",push_data);
     delay(500);
   
-  
-    push_data = get_GPS(read_pm25());
+    pm25 = read_pm25();
+    if(pm25 != "__no_data__")
+      push_data = get_GPS(pm25);
     Serial.println("[ESP12F_PM2.5]"+push_data);
     push("ESP12F_PM2.5",push_data);
     
   
     push("ESP12F_IDF", String(ESP8266TrueRandom.random()%1000+1));
     delay(500);
-    
+
     result = pull("ESP12F_testlatency");
     if (result != "___NULL_DATA___"){
       if (result.toInt() == 0) {
