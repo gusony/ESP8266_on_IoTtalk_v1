@@ -276,6 +276,8 @@ String read_pm25(void) //get pm2.5 data
   pms.end();
   return "__no_data__";
 }
+
+
 /*
 void sim_lon()
 {
@@ -324,7 +326,7 @@ String get_GPS( String value)
     result += c;
   else if (find_flag == 0 && result.indexOf("GPRMC") != -1) {
     //                1         2 3          4 5           6 7     89      012
-    //result = "$GPRMC,135356.00,A,2447.22054,N,12059.81815,E,0.636,,020618,,,A*74";
+    //result = "$GPRMC,053015.00,A,2447.19539,N,12100.06437,E,0.016,,080618,,,A*74";
     Serial.println("result:" + result);
 
     // Time
@@ -368,7 +370,6 @@ String get_GPS( String value)
       temp = "";
       for (j = 3; j < Lon.length(); j++)
         temp += Lon[j];
-
       temp = (String)(temp.toFloat() / 60.0);
       Lon = "24." + temp;
       i_temp = Lon.indexOf('.', Lon.indexOf('.') + 1);
@@ -401,17 +402,29 @@ String get_GPS( String value)
           Lat += result[i];
         }
       }
-
+      
       // convert lat
       temp = "";
       for (j = 4; j < Lat.length(); j++)
         temp += Lat[j];
+      temp = (String)(temp.toInt()/ 60.0);
+        
+      if(Lat[2] == '1')
+        Lat = "121.";
+      else if(Lat[2] == '0')
+        Lat = "120.";
 
-      Lat = "120.";
-      temp = (String)(temp.toInt() / 60.0);
+      if(temp.indexOf('.') < 6){
+        for(j = 0; j < 5-temp.indexOf('.'); j++){
+          Lat += '0';
+        }
+      }
+        
       for (j = 0; j < temp.length(); j++)
         if (temp[j] != '.' )
           Lat += temp[j];
+      
+      
       LV_lat = Lat;
     }
     else {
@@ -428,9 +441,8 @@ String get_GPS( String value)
 
     //Date
     if (next_comma - i == 6) {
-      for (i; i < next_comma; i++) {
+      for (i; i < next_comma; i++) 
         Date += result[i];
-      }
       Date_Time = "\"20" + Date.substring(4, 6) + "-" + Date.substring(2, 4) + "-" + Date.substring(0, 2) + " " + Time + "\"";
       LV_datetime = Date_Time;
     }
@@ -441,23 +453,24 @@ String get_GPS( String value)
     break;
   }
   delay(5);
-}
-GPS.end();
-
-show_on_OLED = LV_datetime + "\n";
-if (flag_lon)
-  show_on_OLED += Lon + ",";
-else
-  show_on_OLED += "no lon,";
-
-if (flag_lat)
-  show_on_OLED += Lat + "\n";
-else
-  show_on_OLED += "no lat";
+  }
+  GPS.end();
 
 
-OLED_print(show_on_OLED);
-return (Lon + ", " + Lat + ", \"user1\", " + value + "," + LV_datetime + "");
+  // show date time and lon lat on OLED monitor
+  show_on_OLED = LV_datetime + "\n";
+  if (flag_lon)
+    show_on_OLED += Lon + ",";
+  else
+    show_on_OLED += "no lon,";
+  
+  if (flag_lat)
+    show_on_OLED += Lat + "\n";
+  else
+    show_on_OLED += "no lat";
+  OLED_print(show_on_OLED);
+
+  return (Lon + ", " + Lat + ", \"user1\", " + value + "," + LV_datetime + "");
 }
 //void lcd_print(String Str,int column,int row)
 //{
