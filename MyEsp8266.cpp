@@ -260,6 +260,7 @@ String read_pm25(void) //get pm2.5 data
       return (String)pms5003[1];
     }
   }
+  Serial.println("pm25 no data");
   pms.end();
   return "__no_data__";
 }
