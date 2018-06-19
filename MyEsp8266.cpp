@@ -37,8 +37,7 @@ String LV_datetime = "";
 String LV_lon = "24.787194", LV_lat = "120.997285";
 
 //EEPROM//EEPROM
-void clr_eeprom(int sw)
-{ //clear eeprom (and wifi disconnect?)
+void clr_eeprom(int sw){ //clear eeprom (and wifi disconnect?)
   if (!sw) {
     delay(3000);
   }
@@ -49,8 +48,7 @@ void clr_eeprom(int sw)
     delay(50);
   }
 }
-void save_WiFi_AP_Info(char *wifiSSID, char *wifiPASS, char *ServerIP)  //stoage format: [SSID,PASS,ServerIP]
-{
+void save_WiFi_AP_Info(char *wifiSSID, char *wifiPASS, char *ServerIP){  //stoage format: [SSID,PASS,ServerIP]
   char *netInfo[3] = {wifiSSID, wifiPASS, ServerIP};
   int addr = 0, i = 0, j = 0;
 
@@ -69,12 +67,11 @@ void save_WiFi_AP_Info(char *wifiSSID, char *wifiPASS, char *ServerIP)  //stoage
   EEPROM.commit();
   delay(50);
 }
-int  read_WiFi_AP_Info(char *wifiSSID, char *wifiPASS, char *ServerIP) // storage format: [SSID,PASS,ServerIP]
-{
+int  read_WiFi_AP_Info(char *wifiSSID, char *wifiPASS, char *ServerIP){ // storage format: [SSID,PASS,ServerIP]
   char *netInfo[3] = {wifiSSID, wifiPASS, ServerIP};
   String readdata = "";
   int addr = 0;
-  ////OLED_print("Read EEPROM data");
+  //OLED_print("Read EEPROM data");
   char temp = EEPROM.read(addr++);
 
   if (temp != '[') {
@@ -102,8 +99,7 @@ int  read_WiFi_AP_Info(char *wifiSSID, char *wifiPASS, char *ServerIP) // storag
 }
 
 //server ,ap mode
-String scan_network(void)
-{
+String scan_network(void){
   int AP_N, i; //AP_N: AP number
   String AP_List = "<select name=\"SSID\" style=\"width: 150px;\">" ; // make ap_name in a string
   AP_List += "<option value=\"\">請選擇</option>";
@@ -121,8 +117,7 @@ String scan_network(void)
   AP_List += "</select><br><br>";
   return (AP_List);
 }
-void handleRoot(void)
-{
+void handleRoot(void){
   Serial.println("handleRoot");
   String temp = "<html><title>Wi-Fi Setting</title>";
   temp += "<head><meta http-equiv=\"Content-Type\" content=\"text/html; charset=utf-8\"/>";
@@ -136,26 +131,21 @@ void handleRoot(void)
   temp += "<input type=\"serverIP\" name=\"serverIP\" value=\"" + String(IoTtalkServerIP) + "\" style=\"width: 150px;\">";
   temp += "<br><br><input type=\"submit\" value=\"Submit\" on_click=\"javascript:alert('TEST');\">";
   temp += "</div></form><br>";
-  //temp += "<div><input type=\"button\" value=\"開啟\" onclick=\"location.href=\'turn_on_pin\'\"><br>";
-  //temp += "<input type=\"button\" value=\"關閉\" onclick=\"location.href=\'turn_off_pin\'\"><br></div>";
   temp += "</html>";
   server.send ( 200, "text/html", temp );
 }
-void handleNotFound(void)
-{
+void handleNotFound(void){
   Serial.println("Page Not Found ");
   server.send( 404, "text/html", "Page not found.");
 }
-void start_web_server(void)
-{
+void start_web_server(void){
   server.on ( "/", handleRoot );
   server.on ( "/setup", saveInfoAndConnectToWiFi);
   server.onNotFound ( handleNotFound );
   server.begin();
   //OLED_print("Web Server Start!");
 }
-void ap_setting(void)
-{
+void ap_setting(void){
   String softapname = "ESP12F-";
   byte mac[6];
   WiFi.macAddress(mac);
@@ -184,10 +174,9 @@ void ap_setting(void)
   while (wifimode) server.handleClient();
   Serial.println("exit ap_setting");
 }
-void connect_to_wifi(char *wifiSSID, char *wifiPASS)
-{
+void connect_to_wifi(char *wifiSSID, char *wifiPASS){
   long connecttimeout = millis();
-  //OLED_print("Connect to Wi-Fi");
+  OLED_print("Connect to Wi-Fi");
   WiFi.softAPdisconnect(true);
   Serial.println("-----Connect to Wi-Fi-----");
   WiFi.begin(wifiSSID, wifiPASS);
@@ -207,8 +196,7 @@ void connect_to_wifi(char *wifiSSID, char *wifiPASS)
     ap_setting();
   }
 }
-void saveInfoAndConnectToWiFi(void)
-{
+void saveInfoAndConnectToWiFi(void){
   Serial.println("Get network information.");
   char _SSID_[100] = "";
   char _PASS_[100] = "";
@@ -220,7 +208,6 @@ void saveInfoAndConnectToWiFi(void)
     server.arg(0).toCharArray(_SSID_, sizeof(_SSID_));
     server.arg(1).toCharArray(_PASS_, sizeof(_PASS_));
     server.arg(2).toCharArray(IoTtalkServerIP, 100);
-    //server.send(200, "text/html", "ok");
     server.stop();
     Serial.print("[");
     Serial.print(_SSID_);
@@ -345,8 +332,7 @@ String get_GPS( String value)
       temp = "";
       temp = (String)Time[0] + (String)Time[1];
       temp = (temp.toInt() + 8 >= 24 ? (temp.toInt() - 17) : (temp.toInt() + 8));
-      Time[0] = temp[0];
-      Time[1] = temp[1];
+      Time = temp + Time.substring(2);
       temp = "";
     }
 
