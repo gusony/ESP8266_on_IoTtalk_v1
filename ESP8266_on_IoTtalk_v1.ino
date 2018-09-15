@@ -6,8 +6,8 @@
 #define Nofp_time 1
 #define NofP 1000 // number of test packets
 
-extern DHT dht;
-extern Adafruit_SSD1306 display;
+//extern DHT dht;
+//extern Adafruit_SSD1306 display;
 extern char IoTtalkServerIP[100];
 
 HTTPClient http;
@@ -18,8 +18,7 @@ long cycleTimestamp;
 String result, Humidity, Temperature, pm25;
 int continue_error_quota = 5;
 
-int iottalk_register(void)
-{
+int iottalk_register(void){
   url = "http://" + String(IoTtalkServerIP) + ":9999/";
 
   String df_list[] = DF_list;
@@ -61,18 +60,14 @@ int iottalk_register(void)
   url += "/";
   return httpCode;
 }
-
-void init_ODFtimestamp(void)
-{
+void init_ODFtimestamp(void){
   for (int i = 0; i <= nODF; i++)
     df_timestamp[i] = "";
 
   for (int i = 0; i <= nODF; i++)
     df_name_list[i] = "";
 }
-
-int DFindex(char *df_name)
-{
+int DFindex(char *df_name){
   for (int i = 0; i <= nODF; i++) {
     if (String(df_name) ==  df_name_list[i]) return i;
     else if (df_name_list[i] == "") {
@@ -82,9 +77,7 @@ int DFindex(char *df_name)
   }
   return nODF + 1; // df_timestamp is full
 }
-
-int push(char *df_name, String value)
-{
+int push(char *df_name, String value){
   http.begin( url + String(df_name));
   http.addHeader("Content-Type", "application/json");
   String data = "{\"data\":[" + value + "]}";
@@ -121,9 +114,7 @@ int push(char *df_name, String value)
   return httpCode;
 }
 
-String pull(char *df_name)
-{
-  /*
+/*
      pull one times
      the iottalk server will return a json format String
      eg.
@@ -146,7 +137,8 @@ String pull(char *df_name)
      so,
      root["samples"][0][0] is the timestamp
      root["samples"][0][1] is the data we want
-  */
+*/
+String pull(char *df_name){
   String get_ret_str;
   int httpCode;
   String temp_timestamp = "";
@@ -192,8 +184,7 @@ String pull(char *df_name)
 
 }
 
-void test_v1_latency(void)
-{
+void test_v1_latency(void){
   String rep;
   float average;
   long send_timestamp, sum = 0;
@@ -233,8 +224,7 @@ void test_v1_latency(void)
 
 }
 
-void setup(void)
-{
+void setup(void){
   pinMode(CLEAREEPROM, INPUT_PULLUP); //GPIO13: clear eeprom button
   pinMode(LEDPIN, OUTPUT);//GPIO2 : on board led
   digitalWrite(LEDPIN, HIGH);
@@ -246,7 +236,7 @@ void setup(void)
 
   EEPROM.begin(512);
   Serial.begin(115200);
-  dht.begin();
+  //dht.begin();
 
   OLED_print("hello world");
   char wifissid[100] = "";
@@ -260,30 +250,31 @@ void setup(void)
     Serial.println("Laod setting failed! statesCode: " + String(statesCode)); // StatesCode 1=No data, 2=ServerIP with wrong format
     ap_setting();
   }
-  //while(wifimode) server.handleClient(); //waitting for connecting to AP ;
 
   statesCode = 0;
   while (statesCode != 200) {
     statesCode = iottalk_register();
     if (statesCode != 200) {
       Serial.println("Retry to register to the IoTtalk server. Suspend 3 seconds.");
-      if (digitalRead(CLEAREEPROM) == LOW) clr_eeprom(0);
+      
+      if (digitalRead(CLEAREEPROM) == LOW) 
+        clr_eeprom(0);
+      
       delay(3000);
     }
   }
+
+  
   init_ODFtimestamp();
   cycleTimestamp = millis();
 }
-
-void loop(void)
-{
+void loop(void){
   if (digitalRead(CLEAREEPROM) == LOW) {
     clr_eeprom(0);
   }
 
   if (millis() - cycleTimestamp > 1000) {
-
-
+/*    
     Temperature = (String)dht.readTemperature() != "nan" ? (String)dht.readTemperature() : Temperature;
     String push_data = get_GPS(Temperature);
     Serial.println("[ESP12F_Temp]" + push_data);
@@ -297,15 +288,13 @@ void loop(void)
     delay(500);
 
     pm25 = read_pm25();
-    Serial.println("pm25:" + pm25);
     if (pm25 != "__no_data__") {
       push_data = get_GPS(pm25);
       Serial.println("[ESP12F_PM2.5]" + push_data);
       push("ESP12F_PM2.5", push_data);
     }
-
-
-
+    delay(500);
+*/
     push("ESP12F_IDF", String(ESP8266TrueRandom.random() % 1000 + 1));
     delay(500);
 
