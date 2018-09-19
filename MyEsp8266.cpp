@@ -1,42 +1,223 @@
-#ifndef all_header
-#define all_header
-#include <SPI.h>
-#include <Wire.h>
-#include <EEPROM.h>
-#include <PubSubClient.h> // MQTT library
-//#include <Adafruit_GFX.h>
-//#include <Adafruit_SSD1306.h>
-#include <ESP8266WiFi.h>
-#include <ESP8266WebServer.h>
-//#include <ESP8266WiFiMulti.h>
-//#include <SoftwareSerial.h>
-#include "ArduinoJson.h" // json library
-#include "ESP8266TrueRandom.h" // uuid library
-//#include "ESP8266HTTPClient2.h"
 #include "MyEsp8266.h"
-//#include "DHT.h"
+
+const char* df_list[nODF] = {"ESP12F_IDF", "ESP12F_ODF"};
+const char* uuid = "000102030407";
+byte mac[6] = {0x00, 0x01, 0x02, 0x03, 0x04, 0x07};
+int tcp_connect_error_times = 5;
+char ServerIP[50];
+
+#ifdef USE_ETHERNET
+  EthernetClient Eclient;
+#elif defined USE_WIFI
+  WiFiClient espClient;
+  ESP8266WebServer server ( 80 );
+  HTTPClient http;
+  uint8_t wifimode = 1; //1:AP , 0: STA
 #endif
 
-//#define SSD1306_IIC
-//#ifdef SSD1306_IIC  //SSD1306 with IIC
-//Adafruit_SSD1306 display(OLED_RESET);
-//#endif
+#ifdef V2
+  #ifdef USE_ETHERNET
+    PubSubClient client(Eclient);
+  #elif defined USE_WIFI
+    PubSubClient client(espClient);
+  #endif
+#endif
 
-char IoTtalkServerIP[20] = "140.113.215.7"; // v1
-ESP8266WebServer server ( 80 );
-WiFiClient espClient;
-PubSubClient client(espClient);
-uint8_t wifimode = 1; //1:AP , 0: STA
 
-//SoftwareSerial pms(PMS_RX, PMS_TX);
-//SoftwareSerial GPS(GPS_RX, GPS_TX);
-//DHT dht(DHTPIN, DHTTYPE);
+#ifdef USE_ETHERNET
+void connect_to_ethernet(void) {
+  while (1) {
+    Serial.print("[Ethernet]begin");
+    if (Ethernet.begin(mac)) {
+      Serial.println(" successful");
+      break;
+    }
+    else
+      Serial.println(" fail");
+  }
+  Serial.print("[Ethernet]localIP:");
+  Serial.println(Ethernet.localIP());
+}
+String prepare_http_package(const char* HTTP_Type, const char* feature, const char* payload){
+  String package = "";//sum of http string that will be send out
+  package = String(HTTP_Type) + " /" + uuid ;
+  if (feature != "")
+    package += "/" + String(feature);    
+  package += " HTTP/1.1\n";
+  package += "Content-Type: application/json\n";
+  if (payload != "") {
+    package += "Content-Length: " + String(String(payload).length()) + "\n\n";
+    package += String(payload) + "\n";
+  }
+  #ifdef debug_mode
+    Serial.println(package);
+  #endif
+  return(package);
+}
+httpresp Send_HTTP(const char* HTTP_Type, const char* feature, const char* payload, bool WillResp) {
+  String temp = "";
+  
+  char * http_resp_package = malloc(sizeof(char) * MAX_HTTP_PACKAGE_SIZE);
+  memset(http_resp_package, 0, MAX_HTTP_PACKAGE_SIZE);
+  
+  httpresp result;
+  result.HTTPStatusCode = 0;
+  result.payload = "";
+  
+  int resp_timeout = 1000;
+  int package_size = 0;
+  int string_indexof;
 
-// LV : last valid
-//String LV_datetime = "";
-//String LV_lon = "24.787194", LV_lat = "120.997285";
+  long start_time = 0;
+  
+    if (Eclient.connect(ServerIP, ServerPort)) {
+      Eclient.println(prepare_http_package(HTTP_Type, feature, payload));
+      
+      start_time = millis();
+      while (millis() - start_time < resp_timeout) {
+        package_size = Eclient.available();
+        if(package_size > 0){
+          Eclient.read(http_resp_package, package_size);
+          #ifdef debug_mode
+            Serial.println(http_resp_package);
+          #endif
+          
+          //get http state code
+          string_indexof = String(http_resp_package).indexOf("HTTP/1.0 ");
+          if(string_indexof >= 0)
+            result.HTTPStatusCode = (http_resp_package[9] - 48) * 100 + (http_resp_package[10] - 48) * 10 + http_resp_package[11] - 48;
+          if(result.HTTPStatusCode != 200)
+            Serial.println(http_resp_package);
+          
+          //get http response payload
+          string_indexof = String(http_resp_package).indexOf("GMT");
+          if(string_indexof >= 0){
+            temp = String(http_resp_package).substring(string_indexof+7);
+            temp.toCharArray(result.payload, temp.length());
 
-//EEPROM//EEPROM
+            //get payload of response package ,so clear memory 
+            free(http_resp_package);
+            Eclient.flush();
+            Eclient.stop();
+            return (result);
+          }
+        }
+      }
+      free(http_resp_package);
+      Eclient.flush();
+      Eclient.stop();
+      return (result);
+    }
+
+    //can not build tcp connection
+    Serial.println("[Send_HTTP]Tcp Connect fail");
+    tcp_connect_error_times--;
+    if(tcp_connect_error_times<=0){
+      connect_to_ethernet();
+      tcp_connect_error_times = 5 ;
+    }
+    result.HTTPStatusCode = -1;
+    free(http_resp_package);
+    Eclient.flush();
+    return (result);
+
+    /*
+     * TCP Connect Fail maybe:
+     * 
+     */
+}
+httpresp Eth_GET(const char* feature ) {
+  return (Send_HTTP("GET", feature, "", 1));
+}
+httpresp Eth_PUT(const char* value, const char* feature ) {
+  String S_payload = "{\"data\":[" + String(value) + "]}";
+  char  payload[(S_payload.length() + 1)];// = malloc(sizeof(char) * (S_payload.length() + 1)) ;
+  S_payload.toCharArray(&payload[0], S_payload.length() + 1 );
+  return (Send_HTTP("PUT", feature, payload, 0));
+}
+httpresp Eth_POST(const char* payload) {
+  return (Send_HTTP("POST", "", payload, 1) );
+}
+#endif
+
+#ifdef USE_WIFI
+//connect to wifi
+/*   WiFi init
+ *                --------------------------
+ *                | check if data in eeprom|
+ *                --------------------------
+ *                 yes|              no|
+ *                    |                |
+ *                    |                V            
+ *                    |        --------------
+ *                    |        |   AP mode  |   <-------
+ *                    |        --------------          |
+ *                    |               | user key in    |
+ *                    V               V                |
+ *                 ------------------------            |
+ *                 |  connect to wifi     |            |
+ *                 ------------------------            |
+ *                   |               |                 |
+ *                OK |          fail |                 |
+ *                   V               -------------------
+ *                  exit
+ *    
+ *    1.  check if it haven stored WiFi ssid, password and iottalk server ip int eeprom
+ *    2.1 YES, go to 3.
+ *    2.2 NO, set ESP8266 into AP mode, and waitting user connecting to esp8266 and key in ssid, password and serverip
+ *    3.  try to connect to wifi. IF fail, turn to ap mode.
+ */
+void WIFI_init(void){
+  char wifissid[50] = "";
+  char wifipass[50] = "";
+  uint8_t statesCode = read_WiFi_AP_Info(&wifissid[0], &wifipass[0], &ServerIP[0]);
+
+  if( !(statesCode & 1) ){
+    String(DEFAULT_SERVER_IP).toCharArray(ServerIP, 50);
+  }
+  
+  if ( (statesCode&0x04)&& (statesCode&0x02) ) {
+    connect_to_wifi(wifissid, wifipass);
+  }
+  else {
+    Serial.println("[WiFi_init]statesCode :" + String(statesCode)); // StatesCode 1=No data, 2=ServerIP with wrong format
+    ap_setting();
+  }
+  
+}
+void connect_to_wifi(char *wifiSSID, char *wifiPASS){
+  Serial.println("[WiFi]Connecting");
+  #ifndef FORCE_CONNECT
+    long connecttimeout = millis();
+    WiFi.softAPdisconnect(true);
+    WiFi.begin(wifiSSID, wifiPASS);
+    while (WiFi.status() != WL_CONNECTED && (millis() - connecttimeout < 10000) ) {
+      delay(1000);
+      Serial.print(".");
+    }
+    #else
+      long connecttimeout = 0;
+      while (WiFi.status() != WL_CONNECTED  ) {
+      if( millis() - connecttimeout > 10000){
+        WiFi.begin(wifiSSID, wifiPASS);
+        connecttimeout = millis();
+      }
+
+      delay(1000);
+      Serial.print(".");
+    }
+  #endif
+  
+  if (WiFi.status() == WL_CONNECTED) {
+    Serial.println("[WiFi]Connected");
+  }
+  else if (millis() - connecttimeout > 10000) {
+    Serial.println("[WiFi]Fail");
+  }
+}
+
+
+//EEPROM
 void clr_eeprom(int sw){ //clear eeprom (and wifi disconnect?)
   if (!sw) {
     delay(3000);
@@ -67,38 +248,43 @@ void save_WiFi_AP_Info(char *wifiSSID, char *wifiPASS, char *ServerIP){  //stoag
   EEPROM.commit();
   delay(50);
 }
-int  read_WiFi_AP_Info(char *wifiSSID, char *wifiPASS, char *ServerIP){ // storage format: [SSID,PASS,ServerIP]
+uint8_t  read_WiFi_AP_Info(char *wifiSSID, char *wifiPASS, char *ServerIP){ // storage format: [SSID,PASS,ServerIP]
   char *netInfo[3] = {wifiSSID, wifiPASS, ServerIP};
   String readdata = "";
   int addr = 0;
-  //OLED_print("Read EEPROM data");
   char temp = EEPROM.read(addr++);
+  uint8_t return_state = 0;
 
   if (temp != '[') {
-    Serial.println("no data in eeprom");
-    return 1;
+    return return_state;
   }
 
   for (int i = 0; i < 3; i++, readdata = "") {
     while (1) {
       temp = EEPROM.read(addr++);
-      if (temp == ',' || temp == ']')
+      if (temp == ',' || temp == ']'){
+        readdata += '\0';
         break;
+      }
       readdata += temp;
     }
-    readdata.toCharArray(netInfo[i], 100);
+    readdata.toCharArray(netInfo[i], 50);
   }
-
-  if (String(ServerIP).length () < 7) {
-    Serial.println("ServerIP loading failed.");
-    return 2;
+  
+  if (String(wifiSSID).length () > 0) {
+    return_state |= 1<<2;
   }
-
-  Serial.println("Load setting successfully.");
-  return 0;
+  if (String(wifiPASS).length () > 0) {
+    return_state |= 1<<1;
+  }
+  
+  if (String(ServerIP).length () > 7) {
+    return_state |= 1<<0;
+  }
+  return return_state;
 }
 
-//server ,ap mode
+//switch to sta  mode
 String scan_network(void){
   int AP_N, i; //AP_N: AP number
   String AP_List = "<select name=\"SSID\" style=\"width: 150px;\">" ; // make ap_name in a string
@@ -128,7 +314,7 @@ void handleRoot(void){
   temp += "Password:<br>";
   temp += "<input type=\"password\" name=\"Password\" vplaceholder=\"輸入AP密碼\" style=\"width: 150px;\">";
   temp += "<br><br>IoTtalk Server IP<br>";
-  temp += "<input type=\"serverIP\" name=\"serverIP\" value=\"" + String(IoTtalkServerIP) + "\" style=\"width: 150px;\">";
+  temp += "<input type=\"serverIP\" name=\"serverIP\" value=\"" + String(ServerIP) + "\" style=\"width: 150px;\">";
   temp += "<br><br><input type=\"submit\" value=\"Submit\" on_click=\"javascript:alert('TEST');\">";
   temp += "</div></form><br>";
   temp += "</html>";
@@ -136,7 +322,7 @@ void handleRoot(void){
 }
 void handleNotFound(void){
   Serial.println("Page Not Found ");
-  server.send( 404, "text/html", "Page not found.");
+  server.send( 404, "text/html", "Page not found.");  
 }
 void start_web_server(void){
   server.on ( "/", handleRoot );
@@ -175,31 +361,10 @@ void ap_setting(void){
   
   Serial.println("exit ap_setting");
 }
-void connect_to_wifi(char *wifiSSID, char *wifiPASS){
-  long connecttimeout = millis();
-  OLED_print("Connect to Wi-Fi");
-  WiFi.softAPdisconnect(true);
-  Serial.println("-----Connect to Wi-Fi-----");
-  WiFi.begin(wifiSSID, wifiPASS);
-
-  while (WiFi.status() != WL_CONNECTED && (millis() - connecttimeout < 10000) ) {
-    delay(1000);
-    Serial.print(".");
-  }
-
-  if (WiFi.status() == WL_CONNECTED) {
-    Serial.println("Connect to wifi successful!\n");
-    wifimode = 0;
-  }
-  else if (millis() - connecttimeout > 10000) {
-    Serial.println("Connect to wifi fail.");
-    ap_setting();
-  }
-}
 void saveInfoAndConnectToWiFi(void){
   Serial.println("Get network information.");
-  char _SSID_[100] = "";
-  char _PASS_[100] = "";
+  char _SSID_[50] = "";
+  char _PASS_[50] = "";
 
   String temp = "Receive SSID & PASSWORD";
   server.send ( 200, "text/html", temp );
@@ -207,245 +372,24 @@ void saveInfoAndConnectToWiFi(void){
   if (server.arg(0) != "" && server.arg(1) != "" && server.arg(2) != "" ) { //arg[0]-> SSID, arg[1]-> password (both string)
     server.arg(0).toCharArray(_SSID_, sizeof(_SSID_));
     server.arg(1).toCharArray(_PASS_, sizeof(_PASS_));
-    server.arg(2).toCharArray(IoTtalkServerIP, 20);
+    server.arg(2).toCharArray(ServerIP, 50);
     server.stop();
     Serial.print("[");
     Serial.print(_SSID_);
     Serial.print("][");
     Serial.print(_PASS_);
     Serial.print("][");
-    Serial.print(IoTtalkServerIP);
+    Serial.print(ServerIP);
     Serial.println("]");
     //OLED_print("User keyin ssid\nConnect to "+(String)_SSID_);
-    
+
     connect_to_wifi(_SSID_, _PASS_);
     if(wifimode == 0){
-      save_WiFi_AP_Info(_SSID_, _PASS_, IoTtalkServerIP);
+      save_WiFi_AP_Info(_SSID_, _PASS_, ServerIP);
     }
   }
 }
 
-/*
-void lcd_print(String Str,int column,int row){
-  lcd.setCursor(column,row);
-  lcd.print(Str);
-}
-*/
-/*
-void init_ssd1306(void)
-{
-  display.begin(SSD1306_SWITCHCAPVCC);
-  display.clearDisplay();
-  delay(1000);
-  display.setTextSize(1); //21 char in one line with Textsize == 1 ,10 char with size 2
-  display.setTextColor(WHITE);
-  display.display();
-}
-void OLED_print(String mes)
-{
-  display.clearDisplay();
-  display.setCursor(0, 0);
-  display.print(mes);
-  display.display();
-}
-*/
-
-//
-//String read_pm25(void){ //get pm2.5 data
-//  unsigned char pms5003[2];//store pms5003 data
-//  long read_timeout;
-//  int i;
-//  pms.begin(pms_baudrate);
-//  read_timeout = millis();
-//
-//  while (millis() - read_timeout <= 10000) {
-//    pms.readBytes(pms5003, 2);
-//    if (pms5003[0] == 0x42 || pms5003[1] == 0x4d) { //尋找每段資料的開頭
-//      for (i = 0; i < 6; i++) {
-//        pms.readBytes(pms5003, 2);
-//      }
-//      pms.end();
-//      return (String)pms5003[1];
-//    }
-//  }
-//  Serial.println("pm25 no data");
-//  pms.end();
-//  return "__no_data__";
-//}
-//String get_GPS( String value){
-//  long timeout = millis();
-//  char c;
-//  String result;
-//  bool find_flag = 0;
-//  int i , j , next_comma, count;
-//  String temp ;
-//  int i_temp;
-//  int flag_lon = 0, flag_lat = 0;
-//  String show_on_OLED = "";
-//
-//  String Time, Date, Date_Time, Lat/* latitude經度*/ , Lon/*longitude緯度*/;
-//  GPS.begin(GPS_baudrate);
-//  while (millis() - timeout < 5000 ) {
-//    c = GPS.read();
-//    if(c == '$'){
-//      find_flag = 1;
-//      result = "";
-//    }
-//    else if (c == '\n')
-//      find_flag = 0;
-//    
-//
-//
-//  if (find_flag  == 1)
-//    result += c;
-//  else if (find_flag == 0 && result.indexOf("GPRMC") != -1) {
-//    //                1         2 3          4 5           6 7     89      012
-//    //result = "$GPRMC,053015.00,A,2447.19539,N,12100.06437,E,0.016,,080618,,,A*74";
-//    Serial.println("result:" + result);
-//
-//    // Time
-//    next_comma = result.indexOf(','); // first comma, usually after $GPRMC
-//    i = next_comma + 1;
-//    next_comma = result.indexOf(',', next_comma + 1); //2nd comma
-//
-//    if (next_comma - i == 9) { //gps receive time
-//      for ( i ; i < next_comma - 3; i++) {
-//        if (Time.length() == 2 || Time.length() == 5)
-//          Time += ':';
-//        Time += result[i];
-//      }
-//
-//      //fix the time to Taiwan's time zone
-//      temp = "";
-//      temp = (String)Time[0] + (String)Time[1];
-//      temp = (temp.toInt() + 8 >= 24 ? (temp.toInt() - 17) : (temp.toInt() + 8));
-//      Time = temp + Time.substring(2);
-//      temp = "";
-//    }
-//
-//    // Lon
-//    next_comma = result.indexOf(',', next_comma + 1); //3th comma, After A
-//    i = next_comma + 1;
-//    next_comma = result.indexOf(',', next_comma + 1); //4th , after Lon
-//
-//    if (next_comma - i ==  10) { //get current lon data
-//      flag_lon = 1;
-//      for (i; i < next_comma ; i++) {
-//        if (result[i] == '.') {}
-//        else if (Lon.length() == 2) {
-//          Lon += '.';
-//          Lon += result[i];
-//        }
-//        else
-//          Lon += result[i];
-//      }
-//
-//      temp = "";
-//      for (j = 3; j < Lon.length(); j++)
-//        temp += Lon[j];
-//      temp = (String)(temp.toFloat() / 60.0);
-//      Lon = "24." + temp;
-//      i_temp = Lon.indexOf('.', Lon.indexOf('.') + 1);
-//      Lon[i_temp] = Lon[i_temp + 1];
-//      Lon[i_temp + 1] = Lon[i_temp + 2];
-//      LV_lon = Lon;
-//    }
-//    else { //not current lon data
-//      flag_lon = 0;
-//      Lon = LV_lon;
-//    }
-//
-//
-//    next_comma = result.indexOf(',', next_comma + 1); //5th, after N
-//    i = next_comma + 1;
-//    next_comma = result.indexOf(',', next_comma + 1); //6th, after Lat
-//
-//
-//    //Lat
-//    if (next_comma - i == 11) {
-//      flag_lat = 1;
-//      //take out lat from result
-//      for (i; i < next_comma ; i++) {
-//        if (result[i] == '.') {}
-//        else if (Lat.length() == 3) {
-//          Lat += '.';
-//          Lat += result[i];
-//        }
-//        else {
-//          Lat += result[i];
-//        }
-//      }
-//      
-//      // convert lat
-//      temp = "";
-//      for (j = 4; j < Lat.length(); j++)
-//        temp += Lat[j];
-//      temp = (String)(temp.toInt()/ 60.0);
-//        
-//      if(Lat[2] == '1')
-//        Lat = "121.";
-//      else if(Lat[2] == '0')
-//        Lat = "120.";
-//
-//      if(temp.indexOf('.') < 6){
-//        for(j = 0; j < 5-temp.indexOf('.'); j++){
-//          Lat += '0';
-//        }
-//      }
-//        
-//      for (j = 0; j < temp.length(); j++)
-//        if (temp[j] != '.' )
-//          Lat += temp[j];
-//      
-//      
-//      LV_lat = Lat;
-//    }
-//    else {
-//      flag_lat = 0;
-//      Lat = LV_lat;
-//    }
-//
-//
-//    next_comma = result.indexOf(',', next_comma + 1); //7th
-//    next_comma = result.indexOf(',', next_comma + 1); //8th
-//    next_comma = result.indexOf(',', next_comma + 1); //9th
-//    i = next_comma + 1;
-//    next_comma = result.indexOf(',', next_comma + 1); //10th
-//
-//    //Date
-//    if (next_comma - i == 6) {
-//      for (i; i < next_comma; i++) 
-//        Date += result[i];
-//      Date_Time = "\"20" + Date.substring(4, 6) + "-" + Date.substring(2, 4) + "-" + Date.substring(0, 2) + " " + Time + "\"";
-//      LV_datetime = Date_Time;
-//    }
-//    else
-//      Date_Time = LV_datetime;
-//
-//
-//    break;
-//  }
-//  delay(5);
-//  }
-//  GPS.end();
-//
-//
-//  // show date time and lon lat on OLED monitor
-//  show_on_OLED = LV_datetime + "\n";
-//  if (flag_lon)
-//    show_on_OLED += Lon + ",";
-//  else
-//    show_on_OLED += "no lon,";
-//  
-//  if (flag_lat)
-//    show_on_OLED += Lat + "\n";
-//  else
-//    show_on_OLED += "no lat";
-//  OLED_print(show_on_OLED);
-//
-//  return (Lon + ", " + Lat + ", \"user1\", " + value + "," + LV_datetime + "");
-//}
-
-
+#endif
 
 

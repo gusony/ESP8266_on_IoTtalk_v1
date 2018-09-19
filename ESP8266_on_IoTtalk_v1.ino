@@ -1,33 +1,58 @@
-#define DM_name  "ESP12F"
-#define DF_list  {"ESP12F_IDF", "ESP12F_PM2.5","ESP12F_Temp","ESP12F_Humi", "ESP12F_testlatency", "ESP12F_ODF", "ESP12F_LED"}
-#define nODF     10  // The max number of ODFs which the DA can pull.
 #include "MyEsp8266.h"
 
 #define Nofp_time 1
 #define NofP 1000 // number of test packets
+  
 
-//extern DHT dht;
-//extern Adafruit_SSD1306 display;
-extern char IoTtalkServerIP[100];
-
-HTTPClient http;
 String url = "";
 String df_name_list[nODF];
 String df_timestamp[nODF];
 long cycleTimestamp;
-String result, Humidity, Temperature, pm25;
+String result;
 int continue_error_quota = 5;
+extern const char* df_list[nODF];
+extern HTTPClient http;
+extern char ServerIP;
 
-int iottalk_register(void){
-  url = "http://" + String(IoTtalkServerIP) + ":9999/";
-
-  String df_list[] = DF_list;
-  int n_of_DF = sizeof(df_list) / sizeof(df_list[0]); // the number of DFs in the DF_list
-  String DFlist = "";
-  for (int i = 0; i < n_of_DF; i++) {
-    DFlist += "\"" + df_list[i] + "\"";
-    if (i < n_of_DF - 1) DFlist += ",";
+void    init_ODFtimestamp(void){
+  for (int i = 0; i <= nODF; i++){
+    df_name_list[i] = "";
+    df_timestamp[i] = "";
   }
+}
+int     DFindex(char *df_name){
+  for (int i = 0; i <= nODF; i++) {
+    if (String(df_name) ==  df_name_list[i]){
+      return i;
+    }
+    else if (df_name_list[i] == "") {
+      df_name_list[i] = String(df_name);
+      return i;
+    }
+  }
+  return nODF + 1; // df_timestamp is full
+}
+
+String  getProfile(void){
+  String result;
+  StaticJsonBuffer<512> JB_root;
+  JsonObject& JO_root = JB_root.createObject();
+  JsonObject& JO_profile = JO_root.createNestedObject("profile");
+  JO_profile["d_name"] =  String(DM_NAME) + ".676";//there should key in a random number
+  JO_profile["dm_name"] = DM_NAME;
+  JO_profile["is_sim"] = false;
+  JsonArray& JO_df_list = JO_profile.createNestedArray("df_list");
+  for(int i = 0; i < nODF; i++)
+    JO_df_list.add( String(df_list[i]) );
+
+  JO_root.printTo(result);
+  JB_root.clear();
+  return result;
+}
+int iottalk_register(void){
+  url = "http://" + String(ServerIP) + ":9999/";
+
+  
 
   uint8_t MAC_array[6];
   WiFi.macAddress(MAC_array);//get esp12f mac address
@@ -38,14 +63,7 @@ int iottalk_register(void){
 
   //send the register packet
   Serial.println("[HTTP] POST..." + url);
-  String profile = "{\"profile\": {\"d_name\": \"";
-  profile += DM_name;
-  profile += "." + String(MAC_array[4], HEX) + String(MAC_array[5], HEX);
-  profile += "\", \"dm_name\": \"";
-  profile += DM_name;
-  profile += "\", \"is_sim\": false, \"df_list\": [";
-  profile +=  DFlist;
-  profile += "]}}";
+  String profile = getProfile();
 
   http.begin(url);
   http.addHeader("Content-Type", "application/json");
@@ -54,29 +72,10 @@ int iottalk_register(void){
   Serial.println("[HTTP] Register... code: " + (String)httpCode );
   Serial.println(http.getString());
 
-  //if(httpCode == 200)
-  //OLED_print("IoTtalk V1 \nRegister Successful!");
-  //http.end();
   url += "/";
   return httpCode;
 }
-void init_ODFtimestamp(void){
-  for (int i = 0; i <= nODF; i++)
-    df_timestamp[i] = "";
 
-  for (int i = 0; i <= nODF; i++)
-    df_name_list[i] = "";
-}
-int DFindex(char *df_name){
-  for (int i = 0; i <= nODF; i++) {
-    if (String(df_name) ==  df_name_list[i]) return i;
-    else if (df_name_list[i] == "") {
-      df_name_list[i] = String(df_name);
-      return i;
-    }
-  }
-  return nODF + 1; // df_timestamp is full
-}
 int push(char *df_name, String value){
   http.begin( url + String(df_name));
   http.addHeader("Content-Type", "application/json");
@@ -226,30 +225,13 @@ void test_v1_latency(void){
 
 void setup(void){
   pinMode(CLEAREEPROM, INPUT_PULLUP); //GPIO13: clear eeprom button
-  pinMode(LEDPIN, OUTPUT);//GPIO2 : on board led
-  digitalWrite(LEDPIN, HIGH);
-  pinMode(16, OUTPUT);//GPIO16 : relay signal
-  digitalWrite(16, LOW);
   randomSeed(analogRead(0));
 
-  init_ssd1306();
-
+  
   EEPROM.begin(512);
   Serial.begin(115200);
-  //dht.begin();
-
-  OLED_print("hello world");
-  char wifissid[100] = "";
-  char wifipass[100] = "";
-  int statesCode = read_WiFi_AP_Info(wifissid, wifipass, IoTtalkServerIP);
-
-  if (!statesCode) {
-    connect_to_wifi(wifissid, wifipass);
-  }
-  else {
-    Serial.println("Laod setting failed! statesCode: " + String(statesCode)); // StatesCode 1=No data, 2=ServerIP with wrong format
-    ap_setting();
-  }
+  uint8_t statesCode ;
+  
 
   statesCode = 0;
   while (statesCode != 200) {
