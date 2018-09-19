@@ -10,7 +10,6 @@
 #ifdef USE_SSD1306
   #ifdef USE_SSD1306_SPI
     Adafruit_SSD1306 display(OLED_MOSI, OLED_CLK, OLED_DC, OLED_RESET, OLED_CS);
-  #endif
   #elif defined SSD1306_IIC  //SSD1306 with IIC
     Adafruit_SSD1306 display(OLED_RESET);
   #endif
