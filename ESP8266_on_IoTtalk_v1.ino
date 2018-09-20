@@ -14,12 +14,7 @@ extern const char* df_list[nODF];
 extern HTTPClient http;
 extern char ServerIP;
 
-void    init_ODFtimestamp(void){
-  for (int i = 0; i <= nODF; i++){
-    df_name_list[i] = "";
-    df_timestamp[i] = "";
-  }
-}
+
 int     DFindex(char *df_name){
   for (int i = 0; i <= nODF; i++) {
     if (String(df_name) ==  df_name_list[i]){
@@ -32,13 +27,20 @@ int     DFindex(char *df_name){
   }
   return nODF + 1; // df_timestamp is full
 }
-
+void    init_ODFtimestamp(void){
+  for (int i = 0; i <= nODF; i++){
+    df_name_list[i] = "";
+    df_timestamp[i] = "";
+  }
+}
 String  getProfile(void){
   String result;
   StaticJsonBuffer<512> JB_root;
   JsonObject& JO_root = JB_root.createObject();
   JsonObject& JO_profile = JO_root.createNestedObject("profile");
-  JO_profile["d_name"] =  String(DM_NAME) + ".676";//there should key in a random number
+  JO_profile["d_name"] =  String(DM_NAME) + "." + (mac[3] < 0x10 ? "0"+String(mac[3],HEX) : String(mac[3],HEX)) \
+                                                + (mac[4] < 0x10 ? "0"+String(mac[4],HEX) : String(mac[4],HEX)) \
+                                                + (mac[5] < 0x10 ? "0"+String(mac[5],HEX) : String(mac[5],HEX));
   JO_profile["dm_name"] = DM_NAME;
   JO_profile["is_sim"] = false;
   JsonArray& JO_df_list = JO_profile.createNestedArray("df_list");
