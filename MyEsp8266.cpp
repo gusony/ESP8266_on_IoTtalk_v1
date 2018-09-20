@@ -1,14 +1,18 @@
 #include "MyEsp8266.h"
 
+
 const char* df_list[nODF] = {"ESP12F_IDF", "ESP12F_ODF"};
-const char* uuid = "000102030407";
-byte mac[6] = {0x00, 0x01, 0x02, 0x03, 0x04, 0x07};
 int tcp_connect_error_times = 5;
 char ServerIP[50];
 
 #ifdef USE_ETHERNET
   EthernetClient Eclient;
+  const char* uuid = "000102030407";
+  byte mac[6] = {0x00, 0x01, 0x02, 0x03, 0x04, 0x07};
 #elif defined USE_WIFI
+  byte mac[6];
+  char wifissid[50] = "";
+  char wifipass[50] = "";
   WiFiClient espClient;
   ESP8266WebServer server ( 80 );
   HTTPClient http;
@@ -22,6 +26,7 @@ char ServerIP[50];
     PubSubClient client(espClient);
   #endif
 #endif
+
 
 
 #ifdef USE_ETHERNET
@@ -143,86 +148,92 @@ httpresp Eth_POST(const char* payload) {
 #ifdef USE_WIFI
 //connect to wifi
 /*   WiFi init
- *                --------------------------
- *                | check if data in eeprom|
- *                --------------------------
- *                 yes|              no|
- *                    |                |
- *                    |                V            
- *                    |        --------------
- *                    |        |   AP mode  |   <-------
- *                    |        --------------          |
- *                    |               | user key in    |
- *                    V               V                |
- *                 ------------------------            |
- *                 |  connect to wifi     |            |
- *                 ------------------------            |
- *                   |               |                 |
- *                OK |          fail |                 |
- *                   V               -------------------
- *                  exit
+ *               --------------------------
+ *               | check if data in eeprom|
+ *               --------------------------
+ *                yes|              no|
+ *                   |                |
+ *      -----------------             V            
+ *      |wifi connected?|      --------------
+ *      -----------------      |   AP mode  |   <-------
+ *      |yes       no |        --------------          |
+ *      |             |               | user key in    |
+ *      |             V               V                |
+ *      |          ------------------------            |
+ *      |          |  connect to wifi     |            |
+ *      |          ------------------------            |
+ *      |            |               |                 |
+ *      |         OK |          fail |                 |
+ *      |            V               -------------------
+ *      --------->  exit
  *    
  *    1.  check if it haven stored WiFi ssid, password and iottalk server ip int eeprom
  *    2.1 YES, go to 3.
  *    2.2 NO, set ESP8266 into AP mode, and waitting user connecting to esp8266 and key in ssid, password and serverip
  *    3.  try to connect to wifi. IF fail, turn to ap mode.
  */
-void WIFI_init(void){
-  char wifissid[50] = "";
-  char wifipass[50] = "";
-  uint8_t statesCode = read_WiFi_AP_Info(&wifissid[0], &wifipass[0], &ServerIP[0]);
-
+int WIFI_init(void){
+  //uint8_t statesCode = read_WiFi_AP_Info(&wifissid[0], &wifipass[0], &ServerIP[0]);
+  uint8_t statesCode = read_WiFi_AP_Info();
+  
   if( !(statesCode & 1) ){
     String(DEFAULT_SERVER_IP).toCharArray(ServerIP, 50);
+    Serial.println("[WiFi_init] ServerIP: "+String(ServerIP));
   }
   
-  if ( (statesCode&0x04)&& (statesCode&0x02) ) {
-    connect_to_wifi(wifissid, wifipass);
-  }
-  else {
-    Serial.println("[WiFi_init]statesCode :" + String(statesCode)); // StatesCode 1=No data, 2=ServerIP with wrong format
-    ap_setting();
-  }
+  if (WiFi.status() == WL_CONNECTED) 
+   return 1; 
+  else if ( (statesCode&0x04)&& (statesCode&0x02) ) 
+    if(connect_to_wifi(wifissid, wifipass))
+      return 1;
+    
+  AP_mode();
   
 }
-void connect_to_wifi(char *wifiSSID, char *wifiPASS){
-  Serial.println("[WiFi]Connecting");
-  #ifndef FORCE_CONNECT
-    long connecttimeout = millis();
-    WiFi.softAPdisconnect(true);
-    WiFi.begin(wifiSSID, wifiPASS);
-    while (WiFi.status() != WL_CONNECTED && (millis() - connecttimeout < 10000) ) {
-      delay(1000);
-      Serial.print(".");
+int connect_to_wifi(char *wifiSSID, char *wifiPASS){
+  Serial.print("[WiFi]Connecting");
+  
+#ifndef FORCE_CONNECT
+  long connecttimeout = millis();
+  WiFi.softAPdisconnect(true);
+  WiFi.begin(wifiSSID, wifiPASS);
+  while (WiFi.status() != WL_CONNECTED && (millis() - connecttimeout < 10000) ) {
+    delay(1000);
+    Serial.print(".");
+  }
+  Serial.println();
+#else
+  long connecttimeout = 0;
+  while (WiFi.status() != WL_CONNECTED  ) {
+    if( millis() - connecttimeout > 10000){
+      WiFi.begin(wifiSSID, wifiPASS);
+      connecttimeout = millis();
     }
-    #else
-      long connecttimeout = 0;
-      while (WiFi.status() != WL_CONNECTED  ) {
-      if( millis() - connecttimeout > 10000){
-        WiFi.begin(wifiSSID, wifiPASS);
-        connecttimeout = millis();
-      }
-
-      delay(1000);
-      Serial.print(".");
-    }
-  #endif
+    
+    delay(1000);
+    Serial.print(".");
+  }
+  Serial.println();
+#endif
   
   if (WiFi.status() == WL_CONNECTED) {
     Serial.println("[WiFi]Connected");
+    wifimode = 0 ;
+    return 1;
   }
   else if (millis() - connecttimeout > 10000) {
     Serial.println("[WiFi]Fail");
+    return 0;
   }
 }
 
 
 //EEPROM
-void clr_eeprom(int sw){ //clear eeprom (and wifi disconnect?)
-  if (!sw) {
+void clr_eeprom(int force){ //clear eeprom (and wifi disconnect?)
+  if (!force) {
     delay(3000);
   }
-  if ( (digitalRead(CLEAREEPROM) == LOW) || (sw == 1) ) {
+  if ( (digitalRead(CLEAREEPROM) == LOW) || (force == 1) ) {
     for (int addr = 0; addr < 512; addr++) EEPROM.write(addr, 0); // clear eeprom
     EEPROM.commit();
     Serial.println("Clear EEPROM.");
@@ -232,6 +243,9 @@ void clr_eeprom(int sw){ //clear eeprom (and wifi disconnect?)
 void save_WiFi_AP_Info(char *wifiSSID, char *wifiPASS, char *ServerIP){  //stoage format: [SSID,PASS,ServerIP]
   char *netInfo[3] = {wifiSSID, wifiPASS, ServerIP};
   int addr = 0, i = 0, j = 0;
+#ifdef debug_mode
+  Serial.println("[Save WiFi info] Start");
+#endif
 
   EEPROM.write (addr++, '['); // the code is equal to (EEPROM.write (addr,'[');  addr=addr+1;)
   for (j = 0; j < 3; j++) {
@@ -247,9 +261,14 @@ void save_WiFi_AP_Info(char *wifiSSID, char *wifiPASS, char *ServerIP){  //stoag
   EEPROM.write (addr++, ']');
   EEPROM.commit();
   delay(50);
+  
+#ifdef debug_mode
+  Serial.println("[Save WiFi info] end");
+#endif
 }
-uint8_t  read_WiFi_AP_Info(char *wifiSSID, char *wifiPASS, char *ServerIP){ // storage format: [SSID,PASS,ServerIP]
-  char *netInfo[3] = {wifiSSID, wifiPASS, ServerIP};
+//uint8_t  read_WiFi_AP_Info(char *wifiSSID, char *wifiPASS, char *ServerIP){ // storage format: [SSID,PASS,ServerIP]
+uint8_t  read_WiFi_AP_Info(void){
+  char *netInfo[3] = {wifissid, wifipass, ServerIP};
   String readdata = "";
   int addr = 0;
   char temp = EEPROM.read(addr++);
@@ -270,17 +289,17 @@ uint8_t  read_WiFi_AP_Info(char *wifiSSID, char *wifiPASS, char *ServerIP){ // s
     }
     readdata.toCharArray(netInfo[i], 50);
   }
-  
-  if (String(wifiSSID).length () > 0) {
+
+
+  if (String(wifissid).length () > 0)
     return_state |= 1<<2;
-  }
-  if (String(wifiPASS).length () > 0) {
+
+  if (String(wifipass).length () > 0)
     return_state |= 1<<1;
-  }
-  
-  if (String(ServerIP).length () > 7) {
+
+  if (String(ServerIP).length () > 7)
     return_state |= 1<<0;
-  }
+
   return return_state;
 }
 
@@ -324,25 +343,46 @@ void handleNotFound(void){
   Serial.println("Page Not Found ");
   server.send( 404, "text/html", "Page not found.");  
 }
+void saveInfoAndConnectToWiFi(void){
+  Serial.println("Get network information.");
+
+  String temp = "Receive SSID & PASSWORD";
+  server.send ( 200, "text/html", temp );
+
+  if (server.arg(0) != "" && server.arg(1) != "" && server.arg(2) != "" ) { //arg[0]-> SSID, arg[1]-> password (both string)
+    server.arg(0).toCharArray(wifissid, 50);
+    server.arg(1).toCharArray(wifipass, 50);
+    server.arg(2).toCharArray(ServerIP, 50);
+    server.stop();
+    Serial.print("[");
+    Serial.print(wifissid);
+    Serial.print("][");
+    Serial.print(wifipass);
+    Serial.print("][");
+    Serial.print(ServerIP);
+    Serial.println("]");
+    
+    if(connect_to_wifi(wifissid, wifipass) == 1){
+      save_WiFi_AP_Info(wifissid, wifipass, ServerIP);
+    }
+  }
+}
 void start_web_server(void){
   server.on ( "/", handleRoot );
   server.on ( "/setup", saveInfoAndConnectToWiFi);
   server.onNotFound ( handleNotFound );
   server.begin();
-  //OLED_print("Web Server Start!");
+  while (wifimode) 
+    server.handleClient();
 }
-void ap_setting(void){
+void AP_mode(void){
   String softapname = "ESP12F-";
   byte mac[6];
   WiFi.macAddress(mac);
   for (int i = 0; i < 6; ++i){
-    char buf[3];
-    sprintf(buf, "%X", mac[i]);
-    if (mac[i] < 0x10 )
-      softapname += "0";
-    softapname += buf;
+    softapname += mac[i] < 0x10 ? "0"+String(mac[i],HEX) : String(mac[i],HEX);
   }
-  Serial.println(softapname);
+  Serial.println("[AP_SET]:"+softapname);
 
   IPAddress ip(192, 168, 0, 1);
   IPAddress gateway(192, 168, 0, 1);
@@ -351,45 +391,9 @@ void ap_setting(void){
   WiFi.disconnect();
   WiFi.softAPConfig(ip, gateway, subnet);
   WiFi.softAP(&softapname[0]);
-  //if ( MDNS.begin ( "esp8266" ) ) Serial.println ( "MDNS responder started" ); //enable Multicast DNS to provide Bonjour service.
-
-  start_web_server();
-
-  Serial.println ( "Switch to AP mode and start web server." );
-  while (wifimode) 
-    server.handleClient();
   
-  Serial.println("exit ap_setting");
+  start_web_server();
 }
-void saveInfoAndConnectToWiFi(void){
-  Serial.println("Get network information.");
-  char _SSID_[50] = "";
-  char _PASS_[50] = "";
-
-  String temp = "Receive SSID & PASSWORD";
-  server.send ( 200, "text/html", temp );
-
-  if (server.arg(0) != "" && server.arg(1) != "" && server.arg(2) != "" ) { //arg[0]-> SSID, arg[1]-> password (both string)
-    server.arg(0).toCharArray(_SSID_, sizeof(_SSID_));
-    server.arg(1).toCharArray(_PASS_, sizeof(_PASS_));
-    server.arg(2).toCharArray(ServerIP, 50);
-    server.stop();
-    Serial.print("[");
-    Serial.print(_SSID_);
-    Serial.print("][");
-    Serial.print(_PASS_);
-    Serial.print("][");
-    Serial.print(ServerIP);
-    Serial.println("]");
-    //OLED_print("User keyin ssid\nConnect to "+(String)_SSID_);
-
-    connect_to_wifi(_SSID_, _PASS_);
-    if(wifimode == 0){
-      save_WiFi_AP_Info(_SSID_, _PASS_, ServerIP);
-    }
-  }
-}
-
 #endif
 
 

@@ -35,7 +35,7 @@
   #ifdef V1
     #define DEFAULT_SERVER_IP "140.113.215.7"
   #elif defined V2
-    #define ServerIP "140.113.199.198"
+    #define DEFAULT_SERVER_IP "140.113.199.198"
     #include <PubSubClient.h> // MQTT library
   #endif
 
@@ -75,20 +75,21 @@ typedef struct httpresp{
 
 #ifdef USE_WIFI
     //connect to wifi
-    void WIFI_init(void);
-    void connect_to_wifi(char *wifiSSID, char *wifiPASS);
+    int WIFI_init(void);
+    int connect_to_wifi(char *wifiSSID, char *wifiPASS);
 
     //EEPROM
-    void clr_eeprom(int sw); //clear eeprom (and wifi disconnect?)
+    void clr_eeprom(int force); //clear eeprom (and wifi disconnect?)
     void save_WiFi_AP_Info(char *wifiSSID, char *wifiPASS, char *ServerIP);
-    uint8_t  read_WiFi_AP_Info(char *wifiSSID, char *wifiPASS, char *ServerIP);
+    //uint8_t  read_WiFi_AP_Info(char *wifiSSID, char *wifiPASS, char *ServerIP);
+    uint8_t  read_WiFi_AP_Info(void);
 
     //switch to sta  mode
     String scan_network(void);
     void handleRoot(void);
     void handleNotFound(void);
     void start_web_server(void);
-    void ap_setting(void);
+    void AP_mode(void);
     void saveInfoAndConnectToWiFi(void);
 #endif
 

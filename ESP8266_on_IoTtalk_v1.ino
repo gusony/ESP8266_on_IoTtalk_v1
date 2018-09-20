@@ -2,7 +2,6 @@
 
 #define Nofp_time 1
 #define NofP 1000 // number of test packets
-  
 
 String url = "";
 String df_name_list[nODF];
@@ -12,10 +11,11 @@ String result;
 int continue_error_quota = 5;
 extern const char* df_list[nODF];
 extern HTTPClient http;
-extern char ServerIP;
+extern char ServerIP[50];
+extern byte mac[6];
 
 
-int     DFindex(char *df_name){
+int DFindex(char *df_name){
   for (int i = 0; i <= nODF; i++) {
     if (String(df_name) ==  df_name_list[i]){
       return i;
@@ -27,7 +27,7 @@ int     DFindex(char *df_name){
   }
   return nODF + 1; // df_timestamp is full
 }
-void    init_ODFtimestamp(void){
+void init_ODFtimestamp(void){
   for (int i = 0; i <= nODF; i++){
     df_name_list[i] = "";
     df_timestamp[i] = "";
@@ -48,36 +48,38 @@ String  getProfile(void){
     JO_df_list.add( String(df_list[i]) );
 
   JO_root.printTo(result);
+//#ifdef debug_mode
+//  Serial.println("[Profile]:"+result);
+//#endif
   JB_root.clear();
   return result;
 }
-int iottalk_register(void){
-  url = "http://" + String(ServerIP) + ":9999/";
-
+int Register(void){
+  int httpCode;
   
-
-  uint8_t MAC_array[6];
-  WiFi.macAddress(MAC_array);//get esp12f mac address
+  WiFi.macAddress(mac);
+  url = "http://" + String(ServerIP) + ":9999/";
   for (int i = 0; i < 6; i++) {
-    if ( MAC_array[i] < 0x10 ) url += "0";
-    url += String(MAC_array[i], HEX);;    //Append the mac address to url string
+    url += mac[i] < 0x10 ? "0"+String(mac[i], HEX) : String(mac[i], HEX);    //Append the mac address to url string
   }
+  
+  while(1){
+    http.begin(url);
+    http.addHeader("Content-Type", "application/json");
+    httpCode = http.POST(getProfile());
 
-  //send the register packet
-  Serial.println("[HTTP] POST..." + url);
-  String profile = getProfile();
-
-  http.begin(url);
-  http.addHeader("Content-Type", "application/json");
-  int httpCode = http.POST(profile);
-
-  Serial.println("[HTTP] Register... code: " + (String)httpCode );
-  Serial.println(http.getString());
-
+    if(httpCode == 200){
+      Serial.println(http.getString());
+      break;
+    }
+    else{
+      Serial.println("[Register] code: " + (String)httpCode +"retry in 1 second");
+      delay(1000);
+    }
+  }
   url += "/";
   return httpCode;
 }
-
 int push(char *df_name, String value){
   http.begin( url + String(df_name));
   http.addHeader("Content-Type", "application/json");
@@ -97,7 +99,7 @@ int push(char *df_name, String value){
       Serial.println(" retry to register");
       continue_error_quota = 5;
       while (httpCode != 200) {
-        httpCode = iottalk_register();
+        httpCode = Register();
 
         if (httpCode == 200)
           http.PUT(data);
@@ -114,31 +116,6 @@ int push(char *df_name, String value){
 
   return httpCode;
 }
-
-/*
-     pull one times
-     the iottalk server will return a json format String
-     eg.
-     {
-     "samples": [
-         [
-             "2018-05-03 13:34:21.050927",
-             [
-                 1
-             ]
-         ],
-         [
-             "2018-05-03 13:34:20.588854",
-             [
-                 2
-             ]
-         ]
-      ]
-     }
-     so,
-     root["samples"][0][0] is the timestamp
-     root["samples"][0][1] is the data we want
-*/
 String pull(char *df_name){
   String get_ret_str;
   int httpCode;
@@ -185,6 +162,7 @@ String pull(char *df_name){
 
 }
 
+/*
 void test_v1_latency(void){
   String rep;
   float average;
@@ -224,70 +202,34 @@ void test_v1_latency(void){
   //OLED_print("Test finish");
 
 }
-
+*/
 void setup(void){
   pinMode(CLEAREEPROM, INPUT_PULLUP); //GPIO13: clear eeprom button
   randomSeed(analogRead(0));
-
-  
   EEPROM.begin(512);
   Serial.begin(115200);
-  uint8_t statesCode ;
-  
-
-  statesCode = 0;
-  while (statesCode != 200) {
-    statesCode = iottalk_register();
-    if (statesCode != 200) {
-      Serial.println("Retry to register to the IoTtalk server. Suspend 3 seconds.");
-      
-      if (digitalRead(CLEAREEPROM) == LOW) 
-        clr_eeprom(0);
-      
-      delay(3000);
-    }
-  }
 
   
+  WIFI_init();
+  Register();
   init_ODFtimestamp();
   cycleTimestamp = millis();
 }
 void loop(void){
-  if (digitalRead(CLEAREEPROM) == LOW) {
+  if (digitalRead(CLEAREEPROM) == LOW) 
     clr_eeprom(0);
-  }
+  
 
   if (millis() - cycleTimestamp > 1000) {
-/*    
-    Temperature = (String)dht.readTemperature() != "nan" ? (String)dht.readTemperature() : Temperature;
-    String push_data = get_GPS(Temperature);
-    Serial.println("[ESP12F_Temp]" + push_data);
-    push("ESP12F_Temp", push_data);
-    delay(500);
-
-    Humidity = (String)dht.readHumidity() != "nan" ? (String)dht.readHumidity() : Humidity;
-    push_data = get_GPS(Humidity);
-    Serial.println("[ESP12F_Humi]" + push_data);
-    push("ESP12F_Humi", push_data);
-    delay(500);
-
-    pm25 = read_pm25();
-    if (pm25 != "__no_data__") {
-      push_data = get_GPS(pm25);
-      Serial.println("[ESP12F_PM2.5]" + push_data);
-      push("ESP12F_PM2.5", push_data);
-    }
-    delay(500);
-*/
     push("ESP12F_IDF", String(ESP8266TrueRandom.random() % 1000 + 1));
     delay(500);
 
-    result = pull("ESP12F_testlatency");
-    if (result != "___NULL_DATA___") {
+    result = pull("ESP12F_ODF");
+    /*if (result != "___NULL_DATA___") {
       if (result.toInt() == 0) {
         test_v1_latency();
       }
-    }
+    }*/
 
     cycleTimestamp = millis();
   }
