@@ -54,14 +54,16 @@ String  getProfile(void){
   JB_root.clear();
   return result;
 }
-int Register(void){
+int Register(void){ // retrun httpcode
   int httpCode;
   
   WiFi.macAddress(mac);
   url = "http://" + String(ServerIP) + ":9999/";
-  for (int i = 0; i < 6; i++) {
+  for (int i = 0; i < 6; i++) 
     url += mac[i] < 0x10 ? "0"+String(mac[i], HEX) : String(mac[i], HEX);    //Append the mac address to url string
-  }
+#ifdef debug_mode
+  Serial.println("[Register] url : "+url);
+#endif
   
   while(1){
     http.begin(url);
@@ -69,50 +71,34 @@ int Register(void){
     httpCode = http.POST(getProfile());
 
     if(httpCode == 200){
-      Serial.println(http.getString());
+#ifdef debug_mode
+      Serial.println("[Register] RESP:"+http.getString());
+#endif
       break;
     }
     else{
-      Serial.println("[Register] code: " + (String)httpCode +"retry in 1 second");
+      Serial.println("[Register] httpcode: " + (String)httpCode +",retry in 1 second");
       delay(1000);
     }
   }
   url += "/";
   return httpCode;
 }
-int push(char *df_name, String value){
+int push(char *df_name, String value){  //return httpcode
+  // send package
   http.begin( url + String(df_name));
   http.addHeader("Content-Type", "application/json");
   String data = "{\"data\":[" + value + "]}";
   int httpCode = http.PUT(data);
 
 
+  // get response
   if (httpCode != 200) {
+    Serial.println("[PUSH] \""+String(df_name)+"\":" +value+"..." + (String)httpCode );
     continue_error_quota--;
-    Serial.print("[HTTP] PUSH \"" + String(df_name) + "\"... code: " + (String)httpCode );
-
-    if (httpCode == 400 ) {
-      Serial.print(", Bad Request, format error");
-    }
-
-    if (continue_error_quota <= 0) {
-      Serial.println(" retry to register");
-      continue_error_quota = 5;
-      while (httpCode != 200) {
-        httpCode = Register();
-
-        if (httpCode == 200)
-          http.PUT(data);
-        else
-          delay(3000);
-      }
-    }
-    Serial.println();
   }
-  else {
-    continue_error_quota = 10;
-  }
-
+  else
+    continue_error_quota = 5;
 
   return httpCode;
 }
@@ -121,19 +107,24 @@ String pull(char *df_name){
   int httpCode;
   String temp_timestamp = "";
   String last_data = "";  //This last_data is used to fetch the timestamp.
-  DynamicJsonBuffer jsonBuffer;
+  StaticJsonBuffer<512> jsonBuffer;
 
   http.begin( url + String(df_name) );
   http.addHeader("Content-Type", "application/json");
   httpCode = http.GET(); //http state code
+  
+  
   if (httpCode != 200) {
-    Serial.println("[HTTP] PULL \"" + String(df_name) + "\"... code: " + (String)httpCode + ", retry to register.");
+    Serial.println("[PULL] \"" + String(df_name) + "\"..." + (String)httpCode);
+    continue_error_quota--;
+    http.end();
     return "___NULL_DATA___";
   }
   else {
     get_ret_str = http.getString();  //After send GET request , store the return string
+    http.end();
     JsonObject& root = jsonBuffer.parseObject(get_ret_str);
-    if (get_ret_str.indexOf("samples") >= 0) { // if not found the string , it will return -1
+    if(get_ret_str.indexOf("samples") >= 0) { // if not found the string , it will return -1
       temp_timestamp = root["samples"][0][0].as<String>();
 
       if (df_timestamp[DFindex(df_name)] != temp_timestamp) {
@@ -143,23 +134,12 @@ String pull(char *df_name){
         last_data[last_data.length() - 1] = 0;
         return last_data;   // return the data.
       }
-      else return "___NULL_DATA___";
+      else 
+        return "___NULL_DATA___";
     }
-    else return "___NULL_DATA___";
+    else 
+      return "___NULL_DATA___";
   }
-  http.end();
-  /*
-    while (httpCode != 200){
-        digitalWrite(LEDPIN, HIGH);
-        httpCode = iottalk_register();
-        if (httpCode == 200) http.GET();
-        else delay(3000);
-    }
-  */
-
-
-
-
 }
 
 /*
@@ -208,7 +188,6 @@ void setup(void){
   randomSeed(analogRead(0));
   EEPROM.begin(512);
   Serial.begin(115200);
-
   
   WIFI_init();
   Register();
@@ -218,6 +197,13 @@ void setup(void){
 void loop(void){
   if (digitalRead(CLEAREEPROM) == LOW) 
     clr_eeprom(0);
+
+  if (continue_error_quota <= 0) {
+    Serial.println("[Loop] Try to register");
+    continue_error_quota = 5;
+    while (Register() != 200)
+      delay(1000);
+  }
   
 
   if (millis() - cycleTimestamp > 1000) {
