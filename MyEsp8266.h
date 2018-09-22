@@ -9,9 +9,10 @@
   #define USE_WIFI
   #define V1  // Select iottalk version
   //define V2
-  #define DM_NAME  "ESP12F" // Device Module name
-  #define nODF     2        // The max number of ODFs which the DA can pull.
+  #define DF_LIST {"ESP12F_IDF", "ESP12F_ODF"}
+  #define DM_NAME  "ESP12F" // Device Module name  
   #define debug_mode
+
   //#define USE_SSL
 
   /* include general/common library */
@@ -57,6 +58,10 @@
     #define ETHERNET_SCK 14
     #define ETHERNET_CS  15
   #endif
+#endif
+
+
+#ifdef debug_mode
 #endif
 
 typedef struct httpresp{

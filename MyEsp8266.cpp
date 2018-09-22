@@ -1,7 +1,7 @@
 #include "MyEsp8266.h"
 
 
-const char* df_list[nODF] = {"ESP12F_IDF", "ESP12F_ODF"};
+
 int tcp_connect_error_times = 5;
 char ServerIP[50];
 
@@ -26,6 +26,7 @@ char ServerIP[50];
     PubSubClient client(espClient);
   #endif
 #endif
+
 
 
 

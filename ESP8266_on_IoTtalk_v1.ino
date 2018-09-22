@@ -1,37 +1,20 @@
 #include "MyEsp8266.h"
 
-#define Nofp_time 1
-#define NofP 1000 // number of test packets
-
 String url = "";
-String df_name_list[nODF];
-String df_timestamp[nODF];
 long cycleTimestamp;
-String result;
 int continue_error_quota = 5;
-extern const char* df_list[nODF];
+
+const char* df_list[] = DF_LIST;
+StaticJsonBuffer<256> JB_TS;//JsonBuffer Timestamp
+JsonObject& JO_TS = JB_TS.createObject();
+
 extern HTTPClient http;
 extern char ServerIP[50];
 extern byte mac[6];
 
-
-int DFindex(char *df_name){
-  for (int i = 0; i <= nODF; i++) {
-    if (String(df_name) ==  df_name_list[i]){
-      return i;
-    }
-    else if (df_name_list[i] == "") {
-      df_name_list[i] = String(df_name);
-      return i;
-    }
-  }
-  return nODF + 1; // df_timestamp is full
-}
 void init_ODFtimestamp(void){
-  for (int i = 0; i <= nODF; i++){
-    df_name_list[i] = "";
-    df_timestamp[i] = "";
-  }
+  for(int i = 0; i < (sizeof(df_list)/4);i++)
+    JO_TS[df_list[i]]="";
 }
 String  getProfile(void){
   String result;
@@ -44,26 +27,20 @@ String  getProfile(void){
   JO_profile["dm_name"] = DM_NAME;
   JO_profile["is_sim"] = false;
   JsonArray& JO_df_list = JO_profile.createNestedArray("df_list");
-  for(int i = 0; i < nODF; i++)
+  for(int i = 0; i < sizeof(df_list)/4; i++)
     JO_df_list.add( String(df_list[i]) );
 
   JO_root.printTo(result);
-//#ifdef debug_mode
-//  Serial.println("[Profile]:"+result);
-//#endif
   JB_root.clear();
   return result;
 }
 int Register(void){ // retrun httpcode
   int httpCode;
-  
   WiFi.macAddress(mac);
   url = "http://" + String(ServerIP) + ":9999/";
   for (int i = 0; i < 6; i++) 
     url += mac[i] < 0x10 ? "0"+String(mac[i], HEX) : String(mac[i], HEX);    //Append the mac address to url string
-#ifdef debug_mode
-  Serial.println("[Register] url : "+url);
-#endif
+
   
   while(1){
     http.begin(url);
@@ -71,9 +48,6 @@ int Register(void){ // retrun httpcode
     httpCode = http.POST(getProfile());
 
     if(httpCode == 200){
-#ifdef debug_mode
-      Serial.println("[Register] RESP:"+http.getString());
-#endif
       break;
     }
     else{
@@ -81,7 +55,7 @@ int Register(void){ // retrun httpcode
       delay(1000);
     }
   }
-  url += "/";
+  url+="/";
   return httpCode;
 }
 int push(char *df_name, String value){  //return httpcode
@@ -111,7 +85,7 @@ String pull(char *df_name){
 
   http.begin( url + String(df_name) );
   http.addHeader("Content-Type", "application/json");
-  httpCode = http.GET(); //http state code
+  httpCode = http.GET();
   
   
   if (httpCode != 200) {
@@ -121,18 +95,24 @@ String pull(char *df_name){
     return "___NULL_DATA___";
   }
   else {
-    get_ret_str = http.getString();  //After send GET request , store the return string
+    get_ret_str = http.getString();
     http.end();
     JsonObject& root = jsonBuffer.parseObject(get_ret_str);
-    if(get_ret_str.indexOf("samples") >= 0) { // if not found the string , it will return -1
+    if(get_ret_str.indexOf("samples") >= 0) {
+      /* ArduinoJson V5 建議不要使用containKey 
+       * 所以就用字串尋找,看有沒有sample這個key
+       */
       temp_timestamp = root["samples"][0][0].as<String>();
-
-      if (df_timestamp[DFindex(df_name)] != temp_timestamp) {
-        df_timestamp[DFindex(df_name)] = temp_timestamp;
+      
+      if (JO_TS[df_name].as<String>() != temp_timestamp) {
+        JO_TS[df_name] = temp_timestamp;
         last_data = root["samples"][0][1].as<String>();
         last_data[0] = ' ';
         last_data[last_data.length() - 1] = 0;
-        return last_data;   // return the data.
+#ifdef debug_mode
+        Serial.println("[PULL] \""+String(df_name)+"\":"+last_data);
+#endif
+        return last_data;
       }
       else 
         return "___NULL_DATA___";
@@ -195,6 +175,7 @@ void setup(void){
   cycleTimestamp = millis();
 }
 void loop(void){
+  String result;
   if (digitalRead(CLEAREEPROM) == LOW) 
     clr_eeprom(0);
 
