@@ -64,15 +64,17 @@ int push(char *df_name, String value){  //return httpcode
   http.addHeader("Content-Type", "application/json");
   String data = "{\"data\":[" + value + "]}";
   int httpCode = http.PUT(data);
-
+#ifdef debug_mode
+        Serial.println("[PUSH] \""+String(df_name)+"\":"+value);
+#endif
 
   // get response
   if (httpCode != 200) {
     Serial.println("[PUSH] \""+String(df_name)+"\":" +value+"..." + (String)httpCode );
     continue_error_quota--;
   }
-  else
-    continue_error_quota = 5;
+  //else
+    //continue_error_quota = 5;
 
   return httpCode;
 }
