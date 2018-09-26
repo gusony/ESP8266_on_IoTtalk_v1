@@ -79,14 +79,14 @@ typedef struct httpresp{
 void SetDeviceID(void);
 
 
-#ifdef USE_ETHERNET
+//#ifdef USE_ETHERNET
   void connect_to_ethernet(void);
   String prepare_http_package(const char* HTTP_Type, const char* feature, const char* payload);
   httpresp Send_HTTP(const char* HTTP_Type, const char* feature, const char* payload, bool WillResp);
-  httpresp Eth_GET(const char* feature);
-  httpresp Eth_PUT(const char* value, const char* feature );
-  httpresp Eth_POST(const char* payload);
-#endif
+  httpresp GET(const char* feature);
+  httpresp PUT(const char* value, const char* feature );
+  httpresp POST(const char* payload);
+//#endif
 
 #ifdef USE_WIFI
     //connect to wifi

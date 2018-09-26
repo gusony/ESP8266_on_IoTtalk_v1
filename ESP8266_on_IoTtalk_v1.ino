@@ -1,3 +1,5 @@
+
+
 #include "MyEsp8266.h"
 
 String url = "";
@@ -25,9 +27,7 @@ String  getProfile(void){
   StaticJsonBuffer<512> JB_root;
   JsonObject& JO_root = JB_root.createObject();
   JsonObject& JO_profile = JO_root.createNestedObject("profile");
-  JO_profile["d_name"] =  String(DM_NAME) + "." + (mac[3] < 0x10 ? "0"+String(mac[3],HEX) : String(mac[3],HEX)) \
-                                                + (mac[4] < 0x10 ? "0"+String(mac[4],HEX) : String(mac[4],HEX)) \
-                                                + (mac[5] < 0x10 ? "0"+String(mac[5],HEX) : String(mac[5],HEX));
+  JO_profile["d_name"] =  String(DM_NAME) + "." + String(deviceid).substring(9);
   JO_profile["dm_name"] = DM_NAME;
   JO_profile["is_sim"] = false;
   JsonArray& JO_df_list = JO_profile.createNestedArray("df_list");
