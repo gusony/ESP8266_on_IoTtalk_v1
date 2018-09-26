@@ -12,8 +12,7 @@
   #define DF_LIST {"ESP12F_IDF", "ESP12F_ODF"}
   #define DM_NAME  "ESP12F" // Device Module name  
   #define debug_mode
-
-  //#define USE_SSL
+  #define USE_SSL
 
   /* include general/common library */
   #include <ArduinoJson.h>        // Json library
@@ -29,12 +28,20 @@
     #include <ESP8266WiFiMulti.h>
     #include <ESP8266HTTPClient.h>
     #include <ESP8266TrueRandom.h> // uuid library
+    
+    #ifdef USE_SSL
+      #include <WiFiClientSecure.h>
+    #endif
     //#define FORCE_CONNECT  //if you don't want into ap_setting(),enable it
   #endif
 
   /* set server ip */
   #ifdef V1
-    #define DEFAULT_SERVER_IP "140.113.215.7"
+    #ifdef USE_SSL
+      #define DEFAULT_SERVER_IP "test.iottalk.tw"
+    #else
+      #define DEFAULT_SERVER_IP "140.113.215.7"
+    #endif
   #elif defined V2
     #define DEFAULT_SERVER_IP "140.113.199.198"
     #include <PubSubClient.h> // MQTT library
@@ -68,6 +75,9 @@ typedef struct httpresp{
   int HTTPStatusCode;
   char* payload;
 }httpresp;
+
+void SetDeviceID(void);
+
 
 #ifdef USE_ETHERNET
   void connect_to_ethernet(void);

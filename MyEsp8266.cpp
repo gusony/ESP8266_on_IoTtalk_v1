@@ -3,11 +3,17 @@
 
 
 int tcp_connect_error_times = 5;
-char ServerIP[50];
+char ServerIP[50] ;
+const char* fingerprint = "FE BA 2F E1 56 88 9D EC 0B 19 F8 41 BB 9D 6E 55 06 16 DF 8F";
+char httpspw[36] ; // store https password
+char deviceid[37]; // v1 use 12 char, v2 use 36 char
+String httppw = "";
+
+
+
 
 #ifdef USE_ETHERNET
   EthernetClient Eclient;
-  const char* uuid = "000102030407";
   byte mac[6] = {0x00, 0x01, 0x02, 0x03, 0x04, 0x07};
 #elif defined USE_WIFI
   byte mac[6];
@@ -15,7 +21,12 @@ char ServerIP[50];
   char wifipass[50] = "";
   WiFiClient espClient;
   ESP8266WebServer server ( 80 );
-  HTTPClient http;
+  
+  //#ifdef USE_SSL
+    WiFiClientSecure httpsclient;
+  //#else
+    HTTPClient httpclient;
+  //#endif
   uint8_t wifimode = 1; //1:AP , 0: STA
 #endif
 
@@ -27,7 +38,42 @@ char ServerIP[50];
   #endif
 #endif
 
+void SetDeviceID(void){
+  String DID = ""; //Device ID
+#ifdef USE_WIFI
+  WiFi.macAddress(mac);
+#endif
+  
+#ifdef V1
+  for(int i=0; i<6; i++) DID += mac[i]<0x10 ? "0"+String(mac[i]) : String(mac[i]);
+#elif defined V2
+  DID = ESP8266TrueRandom.uuidToString(mac);
+#endif
+  DID.toCharArray(deviceid, DID.length());
+}
 
+
+String prepare_http_package(const char* HTTP_Type, const char* feature, const char* payload){
+  String package = String(HTTP_Type) + " /" + String(deviceid) ;  //sum of http string that will be send out
+  if (feature != "")
+    package += "/" + String(feature);
+  package += " HTTP/1.1\n";
+#ifdef USE_SSL
+  package += "Host: " + String(DEFAULT_SERVER_IP) + "\n" ; // should not use DEFAULT_SERVER_IP
+#endif
+  package += "Content-Type: application/json\n";
+  if(String(HTTP_Type) != "POST"){
+    package += "password-key: "+httppw+"\n";
+  }
+  if (payload != "") {
+    package += "Content-Length: " + String(String(payload).length()) + "\n\n";
+    package += String(payload) + "\n";
+  }
+  #ifdef debug_mode
+    Serial.println(package);
+  #endif
+  return(package);
+}
 
 
 #ifdef USE_ETHERNET
@@ -43,22 +89,6 @@ void connect_to_ethernet(void) {
   }
   Serial.print("[Ethernet]localIP:");
   Serial.println(Ethernet.localIP());
-}
-String prepare_http_package(const char* HTTP_Type, const char* feature, const char* payload){
-  String package = "";//sum of http string that will be send out
-  package = String(HTTP_Type) + " /" + uuid ;
-  if (feature != "")
-    package += "/" + String(feature);    
-  package += " HTTP/1.1\n";
-  package += "Content-Type: application/json\n";
-  if (payload != "") {
-    package += "Content-Length: " + String(String(payload).length()) + "\n\n";
-    package += String(payload) + "\n";
-  }
-  #ifdef debug_mode
-    Serial.println(package);
-  #endif
-  return(package);
 }
 httpresp Send_HTTP(const char* HTTP_Type, const char* feature, const char* payload, bool WillResp) {
   String temp = "";
@@ -89,7 +119,7 @@ httpresp Send_HTTP(const char* HTTP_Type, const char* feature, const char* paylo
           #endif
           
           //get http state code
-          string_indexof = String(http_resp_package).indexOf("HTTP/1.0 ");
+          string_indexof = String(http_resp_package).indexOf("HTTP/");
           if(string_indexof >= 0)
             result.HTTPStatusCode = (http_resp_package[9] - 48) * 100 + (http_resp_package[10] - 48) * 10 + http_resp_package[11] - 48;
           if(result.HTTPStatusCode != 200)
@@ -137,14 +167,15 @@ httpresp Eth_GET(const char* feature ) {
 }
 httpresp Eth_PUT(const char* value, const char* feature ) {
   String S_payload = "{\"data\":[" + String(value) + "]}";
-  char  payload[(S_payload.length() + 1)];// = malloc(sizeof(char) * (S_payload.length() + 1)) ;
-  S_payload.toCharArray(&payload[0], S_payload.length() + 1 );
-  return (Send_HTTP("PUT", feature, payload, 0));
+  return (Send_HTTPS("PUT", feature, S_payload.c_str(), 0));
 }
 httpresp Eth_POST(const char* payload) {
   return (Send_HTTP("POST", "", payload, 1) );
 }
 #endif
+
+
+
 
 #ifdef USE_WIFI
 //connect to wifi
@@ -377,12 +408,7 @@ void start_web_server(void){
     server.handleClient();
 }
 void AP_mode(void){
-  String softapname = "ESP12F-";
-  byte mac[6];
-  WiFi.macAddress(mac);
-  for (int i = 0; i < 6; ++i){
-    softapname += mac[i] < 0x10 ? "0"+String(mac[i],HEX) : String(mac[i],HEX);
-  }
+  String softapname = "ESP12F-"+String(deviceid);
   Serial.println("[AP_SET]:"+softapname);
 
   IPAddress ip(192, 168, 0, 1);
@@ -395,6 +421,11 @@ void AP_mode(void){
   
   start_web_server();
 }
+
+#ifdef USE_SSL
+
+#endif
+
 #endif
 
 

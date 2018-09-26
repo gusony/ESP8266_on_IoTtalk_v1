@@ -8,9 +8,13 @@ const char* df_list[] = DF_LIST;
 StaticJsonBuffer<256> JB_TS;//JsonBuffer Timestamp
 JsonObject& JO_TS = JB_TS.createObject();
 
-extern HTTPClient http;
+
+extern HTTPClient httpclient;
 extern char ServerIP[50];
 extern byte mac[6];
+extern char deviceid[37];
+
+
 
 void init_ODFtimestamp(void){
   for(int i = 0; i < (sizeof(df_list)/4);i++)
@@ -36,16 +40,14 @@ String  getProfile(void){
 }
 int Register(void){ // retrun httpcode
   int httpCode;
-  WiFi.macAddress(mac);
-  url = "http://" + String(ServerIP) + ":9999/";
-  for (int i = 0; i < 6; i++) 
-    url += mac[i] < 0x10 ? "0"+String(mac[i], HEX) : String(mac[i], HEX);    //Append the mac address to url string
+  url = "http://" + String(ServerIP) + ":"+String(ServerPort)+"/"+String(deviceid);
+  //Append the mac address to url string
 
   
   while(1){
-    http.begin(url);
-    http.addHeader("Content-Type", "application/json");
-    httpCode = http.POST(getProfile());
+    httpclient.begin(url);
+    httpclient.addHeader("Content-Type", "application/json");
+    httpCode = httpclient.POST(getProfile());
 
     if(httpCode == 200){
       break;
@@ -60,10 +62,10 @@ int Register(void){ // retrun httpcode
 }
 int push(char *df_name, String value){  //return httpcode
   // send package
-  http.begin( url + String(df_name));
-  http.addHeader("Content-Type", "application/json");
+  httpclient.begin( url + String(df_name));
+  httpclient.addHeader("Content-Type", "application/json");
   String data = "{\"data\":[" + value + "]}";
-  int httpCode = http.PUT(data);
+  int httpCode = httpclient.PUT(data);
 #ifdef debug_mode
         Serial.println("[PUSH] \""+String(df_name)+"\":"+value);
 #endif
@@ -85,20 +87,20 @@ String pull(char *df_name){
   String last_data = "";  //This last_data is used to fetch the timestamp.
   StaticJsonBuffer<512> jsonBuffer;
 
-  http.begin( url + String(df_name) );
-  http.addHeader("Content-Type", "application/json");
-  httpCode = http.GET();
+  httpclient.begin( url + String(df_name) );
+  httpclient.addHeader("Content-Type", "application/json");
+  httpCode = httpclient.GET();
   
   
   if (httpCode != 200) {
     Serial.println("[PULL] \"" + String(df_name) + "\"..." + (String)httpCode);
     continue_error_quota--;
-    http.end();
+    httpclient.end();
     return "___NULL_DATA___";
   }
   else {
-    get_ret_str = http.getString();
-    http.end();
+    get_ret_str = httpclient.getString();
+    httpclient.end();
     JsonObject& root = jsonBuffer.parseObject(get_ret_str);
     if(get_ret_str.indexOf("samples") >= 0) {
       /* ArduinoJson V5 建議不要使用containKey 
@@ -170,7 +172,8 @@ void setup(void){
   randomSeed(analogRead(0));
   EEPROM.begin(512);
   Serial.begin(115200);
-  
+
+  SetDeviceID();
   WIFI_init();
   Register();
   init_ODFtimestamp();
