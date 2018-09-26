@@ -44,4 +44,4 @@ Upload Speed|115200
 # variable
 * ServerIP/host : char array, global variable
 * ServerPort    : #define , global variable
-* url           : String, global variable, only wifi http use it in Register()/PUSH()/PULL() function
+* url           : String, global variable, only wifi http use it in Register()/PUSH()/PULL() function, **should change it**
