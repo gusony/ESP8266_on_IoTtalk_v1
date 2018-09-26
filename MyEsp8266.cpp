@@ -14,26 +14,26 @@ String httppw = "";
 
 
 #ifdef USE_ETHERNET
-  EthernetClient Eclient;
-  byte mac[6] = {0x00, 0x01, 0x02, 0x03, 0x04, 0x07};
+  EthernetClient TCPclient;
+  byte mac[6] = {0x00, 0x01, 0x02, 0x03, 0x04, 0x07}; // you can set it as you want
 #elif defined USE_WIFI
   byte mac[6];
   char wifissid[50] = "";
   char wifipass[50] = "";
+  uint8_t wifimode = 1; //1:AP , 0: STA
   WiFiClient espClient;
   ESP8266WebServer server ( 80 );
-  
-  //#ifdef USE_SSL
-    WiFiClientSecure httpsclient;
-  //#else
+  /////////////////////////////////////
+  #ifdef USE_SSL
+    WiFiClientSecure TCPclient;
+  #else
     HTTPClient httpclient;
-  //#endif
-  uint8_t wifimode = 1; //1:AP , 0: STA
+  #endif
 #endif
 
 #ifdef V2
   #ifdef USE_ETHERNET
-    PubSubClient client(Eclient);
+    PubSubClient client(TCPclient);
   #elif defined USE_WIFI
     PubSubClient client(espClient);
   #endif
@@ -110,14 +110,14 @@ httpresp Send_HTTP(const char* HTTP_Type, const char* feature, const char* paylo
 
   long start_time = 0;
   
-    if (Eclient.connect(ServerIP, ServerPort)) {
-      Eclient.println(prepare_http_package(HTTP_Type, feature, payload));
+    if (TCPclient.connect(ServerIP, ServerPort)) {
+      TCPclient.println(prepare_http_package(HTTP_Type, feature, payload));
       
       start_time = millis();
       while (millis() - start_time < resp_timeout) {
-        package_size = Eclient.available();
+        package_size = TCPclient.available();
         if(package_size > 0){
-          Eclient.read(http_resp_package, package_size);
+          TCPclient.read(http_resp_package, package_size);
           #ifdef debug_mode
             Serial.println(http_resp_package);
           #endif
@@ -137,15 +137,15 @@ httpresp Send_HTTP(const char* HTTP_Type, const char* feature, const char* paylo
 
             //get payload of response package ,so clear memory 
             free(http_resp_package);
-            Eclient.flush();
-            Eclient.stop();
+            TCPclient.flush();
+            TCPclient.stop();
             return (result);
           }
         }
       }
       free(http_resp_package);
-      Eclient.flush();
-      Eclient.stop();
+      TCPclient.flush();
+      TCPclient.stop();
       return (result);
     }
 
@@ -158,7 +158,7 @@ httpresp Send_HTTP(const char* HTTP_Type, const char* feature, const char* paylo
     }
     result.HTTPStatusCode = -1;
     free(http_resp_package);
-    Eclient.flush();
+    TCPclient.flush();
     return (result);
 
     /*
