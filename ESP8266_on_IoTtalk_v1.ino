@@ -11,7 +11,7 @@ StaticJsonBuffer<256> JB_TS;//JsonBuffer Timestamp
 JsonObject& JO_TS = JB_TS.createObject();
 
 
-extern HTTPClient httpclient;
+//extern HTTPClient httpclient;
 extern char ServerIP[50];
 extern byte mac[6];
 extern char deviceid[37];
@@ -39,91 +39,56 @@ String  getProfile(void){
   return result;
 }
 int Register(void){ // retrun httpcode
-  int httpCode;
-  url = "http://" + String(ServerIP) + ":"+String(ServerPort)+"/"+String(deviceid);
-  //Append the mac address to url string
-
-  
-  while(1){
-    httpclient.begin(url);
-    httpclient.addHeader("Content-Type", "application/json");
-    httpCode = httpclient.POST(getProfile());
-
-    if(httpCode == 200){
-      break;
-    }
-    else{
-      Serial.println("[Register] httpcode: " + (String)httpCode +",retry in 1 second");
+  Serial.println("[Register]start");
+  int httpstatuscode = POST(getProfile().c_str()).HTTPStatusCode;
+  while ( httpstatuscode != 200){
+      Serial.println("[Register]Fail, code"+String(httpstatuscode));
       delay(1000);
-    }
+      httpstatuscode = POST(getProfile().c_str()).HTTPStatusCode;
   }
-  url+="/";
-  return httpCode;
+  return (httpstatuscode);
 }
 int push(char *df_name, String value){  //return httpcode
-  // send package
+/*
   httpclient.begin( url + String(df_name));
   httpclient.addHeader("Content-Type", "application/json");
   String data = "{\"data\":[" + value + "]}";
   int httpCode = httpclient.PUT(data);
+*/
 #ifdef debug_mode
-        Serial.println("[PUSH] \""+String(df_name)+"\":"+value);
+  Serial.println("[PUSH]" + String(df_name)+":"+String(value));
 #endif
 
+  int httpCode = PUT(value.c_str(), df_name).HTTPStatusCode;
   // get response
   if (httpCode != 200) {
     Serial.println("[PUSH] \""+String(df_name)+"\":" +value+"..." + (String)httpCode );
     continue_error_quota--;
   }
-  //else
-    //continue_error_quota = 5;
-
   return httpCode;
 }
 String pull(char *df_name){
-  String get_ret_str;
-  int httpCode;
-  String temp_timestamp = "";
-  String last_data = "";  //This last_data is used to fetch the timestamp.
-  StaticJsonBuffer<512> jsonBuffer;
-
-  httpclient.begin( url + String(df_name) );
-  httpclient.addHeader("Content-Type", "application/json");
-  httpCode = httpclient.GET();
+  httpresp resp_package = GET(df_name);
   
-  
-  if (httpCode != 200) {
-    Serial.println("[PULL] \"" + String(df_name) + "\"..." + (String)httpCode);
+  if (resp_package.HTTPStatusCode != 200) {
+    Serial.println("[PULL] \"" + String(df_name) + "\"..." + String(resp_package.HTTPStatusCode) +"\n"+String(resp_package.payload));
     continue_error_quota--;
-    httpclient.end();
-    return "___NULL_DATA___";
   }
   else {
-    get_ret_str = httpclient.getString();
-    httpclient.end();
-    JsonObject& root = jsonBuffer.parseObject(get_ret_str);
-    if(get_ret_str.indexOf("samples") >= 0) {
-      /* ArduinoJson V5 建議不要使用containKey 
-       * 所以就用字串尋找,看有沒有sample這個key
-       */
-      temp_timestamp = root["samples"][0][0].as<String>();
-      
-      if (JO_TS[df_name].as<String>() != temp_timestamp) {
-        JO_TS[df_name] = temp_timestamp;
-        last_data = root["samples"][0][1].as<String>();
-        last_data[0] = ' ';
-        last_data[last_data.length() - 1] = 0;
+    //String timestamp = "";
+    StaticJsonBuffer<512> JB_resp;
+    JsonObject& root = JB_resp.parseObject(String(resp_package.payload));
+    if( root["samples"][0][0].as<String>() !=  JO_TS[df_name].as<String>()) {//if( (timestamp = root["samples"][0][0].as<String>()) != "") {//if (JO_TS[df_name].as<String>() != timestamp) {
+      JO_TS[df_name] = root["samples"][0][0].as<String>();
+      String last_data = root["samples"][0][1][0].as<String>();
 #ifdef debug_mode
-        Serial.println("[PULL] \""+String(df_name)+"\":"+last_data);
+      Serial.println("[PULL] \""+String(df_name)+"\":"+last_data);
 #endif
-        return last_data;
-      }
-      else 
-        return "___NULL_DATA___";
+      return root["samples"][0][1][0].as<String>();
+      //}
     }
-    else 
-      return "___NULL_DATA___";
   }
+  return "___NULL_DATA___";
 }
 
 /*

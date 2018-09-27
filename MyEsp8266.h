@@ -7,12 +7,14 @@
   /* define what you need */
   //#define USE_ETHERNET
   #define USE_WIFI
+  //#define USE_SSL
   #define V1  // Select iottalk version
   //define V2
   #define DF_LIST {"ESP12F_IDF", "ESP12F_ODF"}
   #define DM_NAME  "ESP12F" // Device Module name  
   #define debug_mode
-  #define USE_SSL
+  #define MAX_HTTP_PACKAGE_SIZE 512
+  
 
   /* include general/common library */
   #include <ArduinoJson.h>        // Json library
@@ -20,7 +22,6 @@
   /* choose the physical layer */
   #ifdef USE_ETHERNET
     #include <UIPEthernet.h> //ENC28J60 module driver
-    #define MAX_HTTP_PACKAGE_SIZE 512
   #elif defined USE_WIFI
     #include <EEPROM.h>
     #include <ESP8266WiFi.h>
@@ -82,7 +83,7 @@ void SetDeviceID(void);
 //#ifdef USE_ETHERNET
   void connect_to_ethernet(void);
   String prepare_http_package(const char* HTTP_Type, const char* feature, const char* payload);
-  httpresp Send_HTTP(const char* HTTP_Type, const char* feature, const char* payload, bool WillResp);
+  httpresp Send_HTTPS(const char* HTTP_Type, const char* feature, const char* payload, bool WillResp);
   httpresp GET(const char* feature);
   httpresp PUT(const char* value, const char* feature );
   httpresp POST(const char* payload);

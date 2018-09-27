@@ -4,13 +4,10 @@
 
 int tcp_connect_error_times = 5;
 char ServerIP[50];
-int ServerPort;
 const char* fingerprint = "FE BA 2F E1 56 88 9D EC 0B 19 F8 41 BB 9D 6E 55 06 16 DF 8F";
 char httpspw[36] ; // store https password
 char deviceid[37]; // v1 use 12 char, v2 use 36 char
 String httppw = "";
-
-
 
 
 #ifdef USE_ETHERNET
@@ -57,7 +54,7 @@ void SetDeviceID(void){
 
 
 
-//#ifdef USE_ETHERNET
+#ifdef USE_ETHERNET
 void connect_to_ethernet(void) {
   while (1) {
     Serial.print("[Ethernet]begin");
@@ -71,6 +68,10 @@ void connect_to_ethernet(void) {
   Serial.print("[Ethernet]localIP:");
   Serial.println(Ethernet.localIP());
 }
+#endif
+
+
+#if defined(USE_ETHERNET) || defined(USE_SSL)
 String prepare_http_package(const char* HTTP_Type, const char* feature, const char* payload){
   String package = String(HTTP_Type) + " /" + String(deviceid) ;  //sum of http string that will be send out
   if (feature != "")
@@ -94,10 +95,10 @@ String prepare_http_package(const char* HTTP_Type, const char* feature, const ch
 #endif
   return(package);
 }
-httpresp Send_HTTP(const char* HTTP_Type, const char* feature, const char* payload, bool WillResp) {
+httpresp Send_HTTPS(const char* HTTP_Type, const char* feature, const char* payload, bool WillResp) {
   String temp = "";
   
-  char * http_resp_package = malloc(sizeof(char) * MAX_HTTP_PACKAGE_SIZE);
+  char * http_resp_package = (char*)malloc(sizeof(char) * MAX_HTTP_PACKAGE_SIZE);
   memset(http_resp_package, 0, MAX_HTTP_PACKAGE_SIZE);
   
   httpresp result;
@@ -110,50 +111,54 @@ httpresp Send_HTTP(const char* HTTP_Type, const char* feature, const char* paylo
 
   long start_time = 0;
   
-    if (TCPclient.connect(ServerIP, ServerPort)) {
-      TCPclient.println(prepare_http_package(HTTP_Type, feature, payload));
-      
-      start_time = millis();
-      while (millis() - start_time < resp_timeout) {
-        package_size = TCPclient.available();
-        if(package_size > 0){
-          TCPclient.read(http_resp_package, package_size);
-          #ifdef debug_mode
-            Serial.println(http_resp_package);
-          #endif
-          
-          //get http state code
-          string_indexof = String(http_resp_package).indexOf("HTTP/");
-          if(string_indexof >= 0)
-            result.HTTPStatusCode = (http_resp_package[9] - 48) * 100 + (http_resp_package[10] - 48) * 10 + http_resp_package[11] - 48;
-          if(result.HTTPStatusCode != 200)
-            Serial.println(http_resp_package);
-          
-          //get http response payload
-          string_indexof = String(http_resp_package).indexOf("GMT");
-          if(string_indexof >= 0){
-            temp = String(http_resp_package).substring(string_indexof+7);
-            temp.toCharArray(result.payload, temp.length());
+  if (TCPclient.connect(ServerIP, ServerPort)) {
+    TCPclient.println(prepare_http_package(HTTP_Type, feature, payload));
+    
+    start_time = millis();
+    while (millis() - start_time < resp_timeout) {
+      package_size = TCPclient.available();
+      if(package_size > 0){
+        TCPclient.read((uint8_t*)http_resp_package, package_size);
+        #ifdef debug_mode
+          Serial.println(http_resp_package);
+        #endif
+        
+        //get http state code
+        string_indexof = String(http_resp_package).indexOf("HTTP/");
+        if(string_indexof >= 0)
+          result.HTTPStatusCode = (http_resp_package[9] - 48) * 100 + (http_resp_package[10] - 48) * 10 + http_resp_package[11] - 48;
+        if(result.HTTPStatusCode != 200)
+          Serial.println(http_resp_package);
+        
+        //get http response payload
+        string_indexof = String(http_resp_package).indexOf("GMT");
+        if(string_indexof >= 0){
+          temp = String(http_resp_package).substring(string_indexof+7);
+          temp.toCharArray(result.payload, temp.length());
 
-            //get payload of response package ,so clear memory 
-            free(http_resp_package);
-            TCPclient.flush();
-            TCPclient.stop();
-            return (result);
-          }
+          //get payload of response package ,so clear memory 
+          free(http_resp_package);
+          TCPclient.flush();
+          TCPclient.stop();
+          return (result);
         }
       }
-      free(http_resp_package);
-      TCPclient.flush();
-      TCPclient.stop();
-      return (result);
     }
+    free(http_resp_package);
+    TCPclient.flush();
+    TCPclient.stop();
+    return (result);
+  }
 
     //can not build tcp connection
     Serial.println("[Send_HTTP]Tcp Connect fail");
     tcp_connect_error_times--;
     if(tcp_connect_error_times<=0){
+#if defined(USE_ETHERNET)
       connect_to_ethernet();
+#elif defined(USE_SSL)
+      connect_to_wifi(wifissid, wifipass);
+#endif
       tcp_connect_error_times = 5 ;
     }
     result.HTTPStatusCode = -1;
@@ -166,15 +171,45 @@ httpresp Send_HTTP(const char* HTTP_Type, const char* feature, const char* paylo
      * 
      */
 }
-httpresp GET(const char* feature ) {
-  return (Send_HTTP("GET", feature, "", 1));
+#endif
+httpresp GET(const char* df_name ) {
+#if defined(USE_ETHERNET) || defined(USE_SSL)
+  return (Send_HTTPS("GET", feature, "", 1));
+#else
+  httpresp  result;
+  httpclient.begin( "http://" + String(ServerIP) + ":"+String(ServerPort)+"/"+String(deviceid)+"/" + String(df_name) );
+  httpclient.addHeader("Content-Type", "application/json");
+  result.HTTPStatusCode  = httpclient.GET();
+  httpclient.getString().toCharArray(result.payload, httpclient.getString().length());
+  //result.payload = httpclient.getString().c_str();  // need to test if it return correct
+#endif
 }
-httpresp PUT(const char* value, const char* feature ) {
+httpresp PUT(const char* value, const char* df_name ) {
+#if defined(USE_ETHERNET) || defined(USE_SSL)
   String S_payload = "{\"data\":[" + String(value) + "]}";
   return (Send_HTTPS("PUT", feature, S_payload.c_str(), 0));
+#else
+  httpresp result;
+  httpclient.begin( "http://" + String(ServerIP) + ":"+String(ServerPort)+"/"+String(deviceid)+"/" + String(df_name));
+  httpclient.addHeader("Content-Type", "application/json");
+  String data = "{\"data\":[" + String(value) + "]}";
+  result.HTTPStatusCode = httpclient.PUT(data);
+  return result;
+#endif
 }
 httpresp POST(const char* payload) {
-  return (Send_HTTP("POST", "", payload, 1) );
+#if defined(USE_ETHERNET) || defined(USE_SSL)
+  return (Send_HTTPS("POST", "", payload, 1) );
+#else 
+  //non https
+  httpresp  result;
+  httpclient.begin("http://" + String(ServerIP) + ":"+String(ServerPort)+"/"+String(deviceid));
+  httpclient.addHeader("Content-Type", "application/json");
+  result.HTTPStatusCode = httpclient.POST(String(payload));
+  httpclient.getString().toCharArray(result.payload, httpclient.getString().length());
+  //result.payload = httpclient.getString().c_str();  // **would not return correctly**
+  return result;
+#endif
 }
 //#endif
 
