@@ -12,8 +12,8 @@ JsonObject& JO_TS = JB_TS.createObject();
 
 
 //extern HTTPClient httpclient;
-extern char ServerIP[50];
-extern byte mac[6];
+//extern char ServerIP[50];
+//extern byte mac[6];
 extern char deviceid[37];
 
 
@@ -27,13 +27,16 @@ String  getProfile(void){
   StaticJsonBuffer<512> JB_root;
   JsonObject& JO_root = JB_root.createObject();
   JsonObject& JO_profile = JO_root.createNestedObject("profile");
-  JO_profile["d_name"] =  String(DM_NAME) + "." + String(deviceid).substring(9);
+  JO_profile["d_name"] =  String(DM_NAME) + "." + String(deviceid).substring(7);
   JO_profile["dm_name"] = DM_NAME;
   JO_profile["is_sim"] = false;
   JsonArray& JO_df_list = JO_profile.createNestedArray("df_list");
   for(int i = 0; i < sizeof(df_list)/4; i++)
     JO_df_list.add( String(df_list[i]) );
-
+#ifdef debug_mode
+  Serial.print("[d_name]")
+  Serial.println(JO_profile["d_name"].as<String>());
+#endif
   JO_root.printTo(result);
   JB_root.clear();
   return result;
@@ -75,7 +78,6 @@ String pull(char *df_name){
     continue_error_quota--;
   }
   else {
-    //String timestamp = "";
     StaticJsonBuffer<512> JB_resp;
     JsonObject& root = JB_resp.parseObject(String(resp_package.payload));
     if( root["samples"][0][0].as<String>() !=  JO_TS[df_name].as<String>()) {//if( (timestamp = root["samples"][0][0].as<String>()) != "") {//if (JO_TS[df_name].as<String>() != timestamp) {
@@ -137,7 +139,7 @@ void setup(void){
   randomSeed(analogRead(0));
   EEPROM.begin(512);
   Serial.begin(115200);
-
+  
   SetDeviceID();
   WIFI_init();
   Register();
@@ -162,6 +164,7 @@ void loop(void){
     delay(500);
 
     result = pull("ESP12F_ODF");
+   
     /*if (result != "___NULL_DATA___") {
       if (result.toInt() == 0) {
         test_v1_latency();

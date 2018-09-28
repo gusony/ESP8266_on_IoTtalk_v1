@@ -43,10 +43,11 @@ void SetDeviceID(void){
 #endif
   
 #ifdef V1
-  for(int i=0; i<6; i++) DID += mac[i]<0x10 ? "0"+String(mac[i]) : String(mac[i]);
+  for(int i=0; i<6; i++) DID += mac[i]<0x10 ? "0"+String(mac[i], HEX) : String(mac[i], HEX);
 #elif defined V2
   DID = ESP8266TrueRandom.uuidToString(mac);
 #endif
+
   DID.toCharArray(deviceid, DID.length());
 }
 
@@ -182,6 +183,7 @@ httpresp GET(const char* df_name ) {
   result.HTTPStatusCode  = httpclient.GET();
   httpclient.getString().toCharArray(result.payload, httpclient.getString().length());
   //result.payload = httpclient.getString().c_str();  // need to test if it return correct
+  return(result);
 #endif
 }
 httpresp PUT(const char* value, const char* df_name ) {
