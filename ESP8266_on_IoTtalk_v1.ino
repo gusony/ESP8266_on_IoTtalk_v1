@@ -34,7 +34,7 @@ String  getProfile(void){
   for(int i = 0; i < sizeof(df_list)/4; i++)
     JO_df_list.add( String(df_list[i]) );
 #ifdef debug_mode
-  Serial.print("[d_name]")
+  Serial.print("[d_name]");
   Serial.println(JO_profile["d_name"].as<String>());
 #endif
   JO_root.printTo(result);
@@ -84,7 +84,7 @@ String pull(char *df_name){
       JO_TS[df_name] = root["samples"][0][0].as<String>();
       String last_data = root["samples"][0][1][0].as<String>();
 #ifdef debug_mode
-      Serial.println("[PULL] \""+String(df_name)+"\":"+last_data);
+      Serial.println("[PULL]"+String(df_name)+":"+last_data);
 #endif
       return root["samples"][0][1][0].as<String>();
       //}
@@ -159,9 +159,9 @@ void loop(void){
   }
   
 
-  if (millis() - cycleTimestamp > 1000) {
+  if (millis() - cycleTimestamp > 500) {
     push("ESP12F_IDF", String(ESP8266TrueRandom.random() % 1000 + 1));
-    delay(500);
+    delay(100);
 
     result = pull("ESP12F_ODF");
    

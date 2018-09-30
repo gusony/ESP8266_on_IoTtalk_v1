@@ -181,8 +181,9 @@ httpresp GET(const char* df_name ) {
   httpclient.begin( "http://" + String(ServerIP) + ":"+String(ServerPort)+"/"+String(deviceid)+"/" + String(df_name) );
   httpclient.addHeader("Content-Type", "application/json");
   result.HTTPStatusCode  = httpclient.GET();
-  httpclient.getString().toCharArray(result.payload, httpclient.getString().length());
-  //result.payload = httpclient.getString().c_str();  // need to test if it return correct
+  String http_resp = httpclient.getString();
+  result.payload = (char*)malloc(sizeof(char)*http_resp.length());
+  http_resp.toCharArray(result.payload, http_resp.length());
   return(result);
 #endif
 }
@@ -209,6 +210,7 @@ httpresp POST(const char* payload) {
   httpclient.addHeader("Content-Type", "application/json");
   result.HTTPStatusCode = httpclient.POST(String(payload));
   httpclient.getString().toCharArray(result.payload, httpclient.getString().length());
+  Serial.print("[POST]");Serial.println(result.payload);
   //result.payload = httpclient.getString().c_str();  // **would not return correctly**
   return result;
 #endif
