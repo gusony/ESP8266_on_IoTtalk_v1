@@ -78,9 +78,9 @@ String prepare_http_package(const char* HTTP_Type, const char* feature, const ch
   if (feature != "")
     package += "/" + String(feature);
   package += " HTTP/1.1\n";
+  
 #ifdef USE_SSL
   package += "Host: " + String(ServerIP) + "\n" ; // should not use DEFAULT_SERVER_IP
-
   if(String(HTTP_Type) != "POST"){
     package += "password-key: "+httppw+"\n";
   }
@@ -90,10 +90,6 @@ String prepare_http_package(const char* HTTP_Type, const char* feature, const ch
     package += "Content-Length: " + String(String(payload).length()) + "\n\n";
     package += String(payload) + "\n";
   }
-  
-#ifdef debug_mode
-  Serial.println(package);
-#endif
   return(package);
 }
 httpresp Send_HTTPS(const char* HTTP_Type, const char* feature, const char* payload, bool WillResp) {
@@ -120,9 +116,6 @@ httpresp Send_HTTPS(const char* HTTP_Type, const char* feature, const char* payl
       package_size = TCPclient.available();
       if(package_size > 0){
         TCPclient.read((uint8_t*)http_resp_package, package_size);
-        #ifdef debug_mode
-          Serial.println(http_resp_package);
-        #endif
         
         //get http state code
         string_indexof = String(http_resp_package).indexOf("HTTP/");
@@ -132,11 +125,11 @@ httpresp Send_HTTPS(const char* HTTP_Type, const char* feature, const char* payl
           Serial.println(http_resp_package);
         
         //get http response payload
-        string_indexof = String(http_resp_package).indexOf("GMT");
+        string_indexof = String(http_resp_package).indexOf("{");
         if(string_indexof >= 0){
-          temp = String(http_resp_package).substring(string_indexof+7);
+          temp = String(http_resp_package).substring(string_indexof);
+          result.payload = (char*)malloc(sizeof(char) * temp.length());
           temp.toCharArray(result.payload, temp.length());
-
           //get payload of response package ,so clear memory 
           free(http_resp_package);
           TCPclient.flush();
@@ -151,21 +144,21 @@ httpresp Send_HTTPS(const char* HTTP_Type, const char* feature, const char* payl
     return (result);
   }
 
-    //can not build tcp connection
-    Serial.println("[Send_HTTP]Tcp Connect fail");
-    tcp_connect_error_times--;
-    if(tcp_connect_error_times<=0){
+  //can not build tcp connection
+  Serial.println("[Send_HTTP]Tcp Connect fail");
+  tcp_connect_error_times--;
+  if(tcp_connect_error_times<=0){
 #if defined(USE_ETHERNET)
-      connect_to_ethernet();
+    connect_to_ethernet();
 #elif defined(USE_SSL)
-      connect_to_wifi(wifissid, wifipass);
+    connect_to_wifi();
 #endif
-      tcp_connect_error_times = 5 ;
-    }
-    result.HTTPStatusCode = -1;
-    free(http_resp_package);
-    TCPclient.flush();
-    return (result);
+    tcp_connect_error_times = 5 ;
+  }
+  result.HTTPStatusCode = -1;
+  free(http_resp_package);
+  TCPclient.flush();
+  return (result);
 
     /*
      * TCP Connect Fail maybe:
@@ -175,7 +168,7 @@ httpresp Send_HTTPS(const char* HTTP_Type, const char* feature, const char* payl
 #endif
 httpresp GET(const char* df_name ) {
 #if defined(USE_ETHERNET) || defined(USE_SSL)
-  return (Send_HTTPS("GET", feature, "", 1));
+  return (Send_HTTPS("GET", df_name, "", 1));
 #else
   httpresp  result;
   httpclient.begin( "http://" + String(ServerIP) + ":"+String(ServerPort)+"/"+String(deviceid)+"/" + String(df_name) );
@@ -191,7 +184,7 @@ httpresp GET(const char* df_name ) {
 httpresp PUT(const char* value, const char* df_name ) {
 #if defined(USE_ETHERNET) || defined(USE_SSL)
   String S_payload = "{\"data\":[" + String(value) + "]}";
-  return (Send_HTTPS("PUT", feature, S_payload.c_str(), 0));
+  return (Send_HTTPS("PUT", df_name, S_payload.c_str(), 0));
 #else
   httpresp result;
   httpclient.begin( "http://" + String(ServerIP) + ":"+String(ServerPort)+"/"+String(deviceid)+"/" + String(df_name));
@@ -208,10 +201,12 @@ httpresp POST(const char* payload) {
 #else 
   //non https
   httpresp  result;
+  Serial.println("[POST]http://" + String(ServerIP) + ":"+String(ServerPort)+"/"+String(deviceid));
   httpclient.begin("http://" + String(ServerIP) + ":"+String(ServerPort)+"/"+String(deviceid));
   httpclient.addHeader("Content-Type", "application/json");
   result.HTTPStatusCode = httpclient.POST(String(payload));
   String http_resp = httpclient.getString();
+  Serial.println("[POST]http_resp"+http_resp);
   result.payload = (char*)malloc(sizeof(char)*http_resp.length());
   http_resp.toCharArray(result.payload, http_resp.length());
   httpclient.end();
@@ -265,19 +260,20 @@ int WIFI_init(void){
   if (WiFi.status() == WL_CONNECTED) 
    return 1; 
   else if ( (statesCode&0x04)&& (statesCode&0x02) ) 
-    if(connect_to_wifi(wifissid, wifipass))
+    if(connect_to_wifi())//if(connect_to_wifi(wifissid, wifipass))
       return 1;
     
   AP_mode();
   
 }
-int connect_to_wifi(char *wifiSSID, char *wifiPASS){
+//int connect_to_wifi(char *wifiSSID, char *wifiPASS){
+int connect_to_wifi(void){
   Serial.print("[WiFi]Connecting");
   
 #ifndef FORCE_CONNECT
   long connecttimeout = millis();
   WiFi.softAPdisconnect(true);
-  WiFi.begin(wifiSSID, wifiPASS);
+  WiFi.begin(wifissid, wifipass);
   while (WiFi.status() != WL_CONNECTED && (millis() - connecttimeout < 10000) ) {
     delay(1000);
     Serial.print(".");
@@ -310,8 +306,6 @@ int connect_to_wifi(char *wifiSSID, char *wifiPASS){
 
 
 
-
-
 /* EEPROM
  * When connect to wifi successfully, it will rewrite the data in eeprom.
  * If Wifi disconnect, it won't rewrite the data.
@@ -329,6 +323,7 @@ void clr_eeprom(int force){ //clear eeprom (and wifi disconnect?)
   }
 }
 void save_WiFi_AP_Info(char *wifiSSID, char *wifiPASS, char *ServerIP){  //stoage format: [SSID,PASS,ServerIP]
+
   char *netInfo[3] = {wifiSSID, wifiPASS, ServerIP};
   int addr = 0, i = 0, j = 0;
 #ifdef debug_mode
@@ -448,7 +443,7 @@ void saveInfoAndConnectToWiFi(void){
     Serial.print(ServerIP);
     Serial.println("]");
 #endif
-    if(connect_to_wifi(wifissid, wifipass) == 1){
+    if(connect_to_wifi() == 1){//if(connect_to_wifi(wifissid, wifipass) == 1){
       save_WiFi_AP_Info(wifissid, wifipass, ServerIP);
     }
   }

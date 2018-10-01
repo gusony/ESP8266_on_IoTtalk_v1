@@ -7,7 +7,7 @@
   /* define what you need */
   //#define USE_ETHERNET
   #define USE_WIFI
-  //#define USE_SSL
+  #define USE_SSL
   #define V1  // Select iottalk version
   //define V2
   #define DF_LIST {"ESP12F_IDF", "ESP12F_ODF"}
@@ -92,12 +92,11 @@ void SetDeviceID(void);
 #ifdef USE_WIFI
     //connect to wifi
     int WIFI_init(void);
-    int connect_to_wifi(char *wifiSSID, char *wifiPASS);
+    int connect_to_wifi(void);
 
     //EEPROM
     void clr_eeprom(int force); //clear eeprom (and wifi disconnect?)
     void save_WiFi_AP_Info(char *wifiSSID, char *wifiPASS, char *ServerIP);
-    //uint8_t  read_WiFi_AP_Info(char *wifiSSID, char *wifiPASS, char *ServerIP);
     uint8_t  read_WiFi_AP_Info(void);
 
     //switch to sta  mode
