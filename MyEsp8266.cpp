@@ -184,6 +184,7 @@ httpresp GET(const char* df_name ) {
   String http_resp = httpclient.getString();
   result.payload = (char*)malloc(sizeof(char)*http_resp.length());
   http_resp.toCharArray(result.payload, http_resp.length());
+  httpclient.end();
   return(result);
 #endif
 }
@@ -197,6 +198,7 @@ httpresp PUT(const char* value, const char* df_name ) {
   httpclient.addHeader("Content-Type", "application/json");
   String data = "{\"data\":[" + String(value) + "]}";
   result.HTTPStatusCode = httpclient.PUT(data);
+  httpclient.end();
   return result;
 #endif
 }
@@ -209,9 +211,13 @@ httpresp POST(const char* payload) {
   httpclient.begin("http://" + String(ServerIP) + ":"+String(ServerPort)+"/"+String(deviceid));
   httpclient.addHeader("Content-Type", "application/json");
   result.HTTPStatusCode = httpclient.POST(String(payload));
-  httpclient.getString().toCharArray(result.payload, httpclient.getString().length());
+  String http_resp = httpclient.getString();
+  result.payload = (char*)malloc(sizeof(char)*http_resp.length());
+  http_resp.toCharArray(result.payload, http_resp.length());
+  httpclient.end();
+#ifdef debug_mode
   Serial.print("[POST]");Serial.println(result.payload);
-  //result.payload = httpclient.getString().c_str();  // **would not return correctly**
+#endif
   return result;
 #endif
 }
@@ -303,7 +309,14 @@ int connect_to_wifi(char *wifiSSID, char *wifiPASS){
 }
 
 
-//EEPROM
+
+
+
+/* EEPROM
+ * When connect to wifi successfully, it will rewrite the data in eeprom.
+ * If Wifi disconnect, it won't rewrite the data.
+ * Wait until Wifi recover, restart the esp12F, it is going to connect wifi again.
+ */
 void clr_eeprom(int force){ //clear eeprom (and wifi disconnect?)
   if (!force) {
     delay(3000);
@@ -341,7 +354,6 @@ void save_WiFi_AP_Info(char *wifiSSID, char *wifiPASS, char *ServerIP){  //stoag
   Serial.println("[Save WiFi info] end");
 #endif
 }
-//uint8_t  read_WiFi_AP_Info(char *wifiSSID, char *wifiPASS, char *ServerIP){ // storage format: [SSID,PASS,ServerIP]
 uint8_t  read_WiFi_AP_Info(void){
   char *netInfo[3] = {wifissid, wifipass, ServerIP};
   String readdata = "";
@@ -384,8 +396,6 @@ String scan_network(void){
   String AP_List = "<select name=\"SSID\" style=\"width: 150px;\">" ; // make ap_name in a string
   AP_List += "<option value=\"\">請選擇</option>";
 
-  //WiFi.disconnect();
-  //delay(100);
   AP_N = WiFi.scanNetworks();
 
   if (AP_N > 0)
@@ -429,6 +439,7 @@ void saveInfoAndConnectToWiFi(void){
     server.arg(1).toCharArray(wifipass, 50);
     server.arg(2).toCharArray(ServerIP, 50);
     server.stop();
+#ifdef debug_mode
     Serial.print("[");
     Serial.print(wifissid);
     Serial.print("][");
@@ -436,7 +447,7 @@ void saveInfoAndConnectToWiFi(void){
     Serial.print("][");
     Serial.print(ServerIP);
     Serial.println("]");
-    
+#endif
     if(connect_to_wifi(wifissid, wifipass) == 1){
       save_WiFi_AP_Info(wifissid, wifipass, ServerIP);
     }
@@ -452,7 +463,7 @@ void start_web_server(void){
 }
 void AP_mode(void){
   String softapname = "ESP12F-"+String(deviceid);
-  Serial.println("[AP_SET]:"+softapname);
+  Serial.println("[AP_Name]:"+softapname);
 
   IPAddress ip(192, 168, 0, 1);
   IPAddress gateway(192, 168, 0, 1);

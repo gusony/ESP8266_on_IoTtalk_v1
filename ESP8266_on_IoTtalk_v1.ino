@@ -2,18 +2,13 @@
 
 #include "MyEsp8266.h"
 
-String url = "";
+//String url = "";
 long cycleTimestamp;
 int continue_error_quota = 5;
-
 const char* df_list[] = DF_LIST;
 StaticJsonBuffer<256> JB_TS;//JsonBuffer Timestamp
 JsonObject& JO_TS = JB_TS.createObject();
 
-
-//extern HTTPClient httpclient;
-//extern char ServerIP[50];
-//extern byte mac[6];
 extern char deviceid[37];
 
 
@@ -52,18 +47,11 @@ int Register(void){ // retrun httpcode
   return (httpstatuscode);
 }
 int push(char *df_name, String value){  //return httpcode
-/*
-  httpclient.begin( url + String(df_name));
-  httpclient.addHeader("Content-Type", "application/json");
-  String data = "{\"data\":[" + value + "]}";
-  int httpCode = httpclient.PUT(data);
-*/
 #ifdef debug_mode
   Serial.println("[PUSH]" + String(df_name)+":"+String(value));
 #endif
 
   int httpCode = PUT(value.c_str(), df_name).HTTPStatusCode;
-  // get response
   if (httpCode != 200) {
     Serial.println("[PUSH] \""+String(df_name)+"\":" +value+"..." + (String)httpCode );
     continue_error_quota--;
@@ -80,14 +68,13 @@ String pull(char *df_name){
   else {
     StaticJsonBuffer<512> JB_resp;
     JsonObject& root = JB_resp.parseObject(String(resp_package.payload));
-    if( root["samples"][0][0].as<String>() !=  JO_TS[df_name].as<String>()) {//if( (timestamp = root["samples"][0][0].as<String>()) != "") {//if (JO_TS[df_name].as<String>() != timestamp) {
+    if( root["samples"][0][0].as<String>() !=  JO_TS[df_name].as<String>()) {
       JO_TS[df_name] = root["samples"][0][0].as<String>();
       String last_data = root["samples"][0][1][0].as<String>();
 #ifdef debug_mode
       Serial.println("[PULL]"+String(df_name)+":"+last_data);
 #endif
       return root["samples"][0][1][0].as<String>();
-      //}
     }
   }
   return "___NULL_DATA___";
