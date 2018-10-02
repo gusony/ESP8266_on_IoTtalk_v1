@@ -14,6 +14,7 @@
   #define DM_NAME  "ESP12F" // Device Module name  
   #define debug_mode
   #define MAX_HTTP_PACKAGE_SIZE 512
+  #define HTTP_RESP_PAYLOAD_SIZE 128
   
 
   /* include general/common library */
@@ -74,7 +75,7 @@
 
 typedef struct httpresp{
   int HTTPStatusCode;
-  char* payload;
+  char* payload; 
 }httpresp;
 
 void SetDeviceID(void);

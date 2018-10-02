@@ -8,6 +8,7 @@ const char* fingerprint = "FE BA 2F E1 56 88 9D EC 0B 19 F8 41 BB 9D 6E 55 06 16
 char httpspw[36] ; // store https password
 char deviceid[37]; // v1 use 12 char, v2 use 36 char
 String httppw = "";
+httpresp global_http_resp;
 
 
 #ifdef USE_ETHERNET
@@ -36,6 +37,8 @@ String httppw = "";
   #endif
 #endif
 
+
+//init function
 void SetDeviceID(void){
   String DID = ""; //Device ID
 #ifdef USE_WIFI
@@ -50,7 +53,11 @@ void SetDeviceID(void){
 
   DID.toCharArray(deviceid, DID.length());
 }
-
+void init_global_http_resp(void){
+  global_http_resp.HTTPStatusCode = 0;
+  global_http_resp.payload =(char*)malloc(sizeof(char)*HTTP_RESP_PAYLOAD_SIZE);
+  memset(global_http_resp.payload, 0, HTTP_RESP_PAYLOAD_SIZE);
+}
 
 
 

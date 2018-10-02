@@ -11,6 +11,7 @@ JsonObject& JO_TS = JB_TS.createObject();
 #endif
 
 extern char deviceid[37];
+extern httpresp global_http_resp;
 #ifdef USE_SSL
 extern String httppw;
 #endif
@@ -102,6 +103,8 @@ void setup(void){
   Serial.begin(115200);
   //clr_eeprom(1);
   SetDeviceID();
+  init_global_http_resp();
+  
   WIFI_init();
   Register();
   init_ODFtimestamp();
