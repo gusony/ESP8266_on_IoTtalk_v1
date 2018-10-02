@@ -84,10 +84,10 @@ void SetDeviceID(void);
 //#ifdef USE_ETHERNET
   void connect_to_ethernet(void);
   String prepare_http_package(const char* HTTP_Type, const char* feature, const char* payload);
-  httpresp Send_HTTPS(const char* HTTP_Type, const char* feature, const char* payload, bool WillResp);
-  httpresp GET(const char* feature);
-  httpresp PUT(const char* value, const char* feature );
-  httpresp POST(const char* payload);
+  void Send_HTTPS(httpresp *result,const char* HTTP_Type, const char* feature, const char* payload, bool WillResp);
+  void GET(httpresp *result, const char* feature);
+  void PUT(httpresp *result, const char* value, const char* feature );
+  void POST(httpresp *result, const char* payload);
 //#endif
 
 #ifdef USE_WIFI
