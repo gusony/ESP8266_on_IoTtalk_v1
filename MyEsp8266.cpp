@@ -36,8 +36,6 @@ String httppw = "";
   #endif
 #endif
 
-
-//init function
 void SetDeviceID(void){
   String DID = ""; //Device ID
 #ifdef USE_WIFI
@@ -52,6 +50,9 @@ void SetDeviceID(void){
 
   DID.toCharArray(deviceid, DID.length());
 }
+
+
+
 
 
 #ifdef USE_ETHERNET
@@ -72,6 +73,7 @@ void connect_to_ethernet(void) {
 
 
 #if defined(USE_ETHERNET) || defined(USE_SSL)
+
 String prepare_http_package(const char* HTTP_Type, const char* feature, const char* payload){
   String package = String(HTTP_Type) + " /" + String(deviceid) ;  //sum of http string that will be send out
   if (feature != "")
@@ -91,13 +93,17 @@ String prepare_http_package(const char* HTTP_Type, const char* feature, const ch
   }
   return(package);
 }
-void Send_HTTPS(httpresp *result, const char* HTTP_Type, const char* feature, const char* payload, bool WillResp) {
+void Send_HTTPS(httpresp *result, const char* HTTP_Type, const char* feature, const char* payload) {
+  //Serial.println("[Send]");
+#ifdef debug_mode_SEND
+  Serial.println("[Sned]Start");
+#endif
   String temp = "";
-  const int resp_timeout = 1000;
+  int resp_timeout = 1000;
   int package_size = 0;
   int string_indexof;
   long start_time = 0;
-  char * http_resp_package = (char*)malloc(sizeof(char) * MAX_HTTP_PACKAGE_SIZE);
+  char * http_resp_package = (char*)malloc(MAX_HTTP_PACKAGE_SIZE);
   memset(http_resp_package, 0, MAX_HTTP_PACKAGE_SIZE);
   
   if (TCPclient.connect(ServerIP, ServerPort)) {
@@ -108,30 +114,40 @@ void Send_HTTPS(httpresp *result, const char* HTTP_Type, const char* feature, co
       package_size = TCPclient.available();
       if(package_size > 0){
         TCPclient.read((uint8_t*)http_resp_package, package_size);
-        
-        // 1. get http state code
+        //get http state code
         string_indexof = String(http_resp_package).indexOf("HTTP/");
         if(string_indexof >= 0)
           result->HTTPStatusCode = (http_resp_package[9] - 48) * 100 + (http_resp_package[10] - 48) * 10 + http_resp_package[11] - 48;
         if(result->HTTPStatusCode != 200)
-          Serial.println("[Send_HTTPS]httpcode=200,\n"+String(http_resp_package)+"\n");
-        
-        // 2. get http response payload
-        if( (string_indexof = String(http_resp_package).indexOf("{")) >= 0){
+          Serial.println(http_resp_package);
+#ifdef debug_mode_SEND
+        //Serial.println("[Send]httpcode:"+String(result->HTTPStatusCode));
+#endif
+        //get http response payload
+        string_indexof = String(http_resp_package).indexOf("{");
+        if(string_indexof >= 0){
           temp = String(http_resp_package).substring(string_indexof);
-          temp.toCharArray(result->payload, temp.length());
-          free(http_resp_package); //get payload of response package ,so clear memory
-          TCPclient.flush();
-          TCPclient.stop();
+#ifdef debug_mode_SEND
+          Serial.println("[Send]temp:"+temp);
+#endif
+          if(temp.length() < HTTP_RESPONSE_PAYLOAD_SIZE)
+            temp.toCharArray(result->payload, temp.length());
+          else{
+            Serial.println("[Send]HTTP_RESPONSE_PAYLOAD_SIZE not enough");
+            Serial.println("[Send]temp:\n"+temp);
+            temp.toCharArray(result->payload, HTTP_RESPONSE_PAYLOAD_SIZE);
+          }
+#ifdef debug_mode_SEND
+          Serial.println("[Send]result->payload:"+String(result->payload));
+#endif
         }
       }
     }
-    free(http_resp_package);
-    TCPclient.flush();
+    if(http_resp_package != NULL)
+      free(http_resp_package);
     TCPclient.stop();
   }
   else{
-    //can not build tcp connection
     Serial.println("[Send_HTTP]Tcp Connect fail");
     tcp_connect_error_times--;
     if(tcp_connect_error_times<=0){
@@ -143,13 +159,17 @@ void Send_HTTPS(httpresp *result, const char* HTTP_Type, const char* feature, co
       tcp_connect_error_times = 5 ;
     }
     result->HTTPStatusCode = -1;
-    free(http_resp_package);
+    if(http_resp_package != NULL)
+      free(http_resp_package);
+    TCPclient.flush();
   }
 }
-#endif
 void GET(httpresp *result, const char* df_name ) {
+#ifdef debug_mode_GET
+  Serial.println("[GET]Start");
+#endif
 #if defined(USE_ETHERNET) || defined(USE_SSL)
-  Send_HTTPS(result, "GET", df_name, "", 1);
+  Send_HTTPS(result, "GET", df_name, "");
 #else
   httpclient.begin( "http://" + String(ServerIP) + ":"+String(ServerPort)+"/"+String(deviceid)+"/" + String(df_name) );
   httpclient.addHeader("Content-Type", "application/json");
@@ -160,9 +180,13 @@ void GET(httpresp *result, const char* df_name ) {
 #endif
 }
 void PUT(httpresp *result, const char* value, const char* df_name ) {
+#ifdef debug_mode_PUT
+  Serial.println("[PUT]Start");
+#endif
+  
 #if defined(USE_ETHERNET) || defined(USE_SSL)
   String S_payload = "{\"data\":[" + String(value) + "]}";
-  Send_HTTPS(result, "PUT", df_name, S_payload.c_str(), 0);
+  Send_HTTPS(result, "PUT", df_name, S_payload.c_str());
 #else
   httpclient.begin( "http://" + String(ServerIP) + ":"+String(ServerPort)+"/"+String(deviceid)+"/" + String(df_name));
   httpclient.addHeader("Content-Type", "application/json");
@@ -172,8 +196,11 @@ void PUT(httpresp *result, const char* value, const char* df_name ) {
 #endif
 }
 void POST(httpresp *result, const char* payload) {
+#ifdef debug_mode_POST
+  Serial.println("[POST]Start");
+#endif
 #if defined(USE_ETHERNET) || defined(USE_SSL)
-  Send_HTTPS(result, "POST", "", payload, 1);
+  Send_HTTPS(result, "POST", "", payload) ;
 #else 
   httpclient.begin("http://" + String(ServerIP) + ":"+String(ServerPort)+"/"+String(deviceid));
   httpclient.addHeader("Content-Type", "application/json");
@@ -183,15 +210,13 @@ void POST(httpresp *result, const char* payload) {
   httpclient.end();
 #endif
 
-#ifdef debug_mode
-  Serial.print("[POST]");Serial.print(result->HTTPStatusCode);Serial.println(result->payload);
-#endif
 }
+
+#endif
 
 
 #ifdef USE_WIFI
-//connect to wifi
-/*   WiFi init
+/*  WiFi init
  *               --------------------------
  *               | check if data in eeprom|
  *               --------------------------
@@ -217,7 +242,6 @@ void POST(httpresp *result, const char* payload) {
  *    3.  try to connect to wifi. IF fail, turn to ap mode.
  */
 int WIFI_init(void){
-  //uint8_t statesCode = read_WiFi_AP_Info(&wifissid[0], &wifipass[0], &ServerIP[0]);
   uint8_t statesCode = read_WiFi_AP_Info();
   
   if( !(statesCode & 1) ){
@@ -228,13 +252,12 @@ int WIFI_init(void){
   if (WiFi.status() == WL_CONNECTED) 
    return 1; 
   else if ( (statesCode&0x04)&& (statesCode&0x02) ) 
-    if(connect_to_wifi())//if(connect_to_wifi(wifissid, wifipass))
+    if(connect_to_wifi())
       return 1;
     
   AP_mode();
   
 }
-//int connect_to_wifi(char *wifiSSID, char *wifiPASS){
 int connect_to_wifi(void){
   Serial.print("[WiFi]Connecting");
   
@@ -271,8 +294,6 @@ int connect_to_wifi(void){
     return 0;
   }
 }
-
-
 
 /* EEPROM
  * When connect to wifi successfully, it will rewrite the data in eeprom.
@@ -438,11 +459,6 @@ void AP_mode(void){
   
   start_web_server();
 }
-
-#ifdef USE_SSL
-
-#endif
-
 #endif
 
 

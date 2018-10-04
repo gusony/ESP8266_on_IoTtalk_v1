@@ -5,13 +5,12 @@
 long cycleTimestamp;
 int continue_error_quota = 5;
 const char* df_list[] = DF_LIST;
-extern char deviceid[37];
-
 #ifdef V1
 StaticJsonBuffer<256> JB_TS;//JsonBuffer Timestamp
 JsonObject& JO_TS = JB_TS.createObject();
 #endif
 
+extern char deviceid[37];
 #ifdef USE_SSL
 extern String httppw;
 #endif
@@ -34,76 +33,92 @@ String  getProfile(void){
   JO_root.printTo(result);
   JB_root.clear();
   
-#ifdef debug_mode
+#ifdef debug_mode_getprofile
   Serial.println("[getProfile]"+result);
 #endif
   return result;
 }
-int Register(void){ // retrun httpcode
+int Register(void){ // retrun httpcod
+#ifdef debug_mode_register
   Serial.println("[Register]start");
+#endif
+
   if( WiFi.status() != WL_CONNECTED )
     connect_to_wifi();
   
-  httpresp httpresponse;
-  httpresponse.payload = (char*)malloc(sizeof(char)*HTTP_RESP_PAYLOAD_SIZE);
   
-  while (1){
-      POST(&httpresponse, getProfile().c_str());
-      if(httpresponse.HTTPStatusCode != 200){
-        Serial.println("[Register]Fail, code"+String(httpresponse.HTTPStatusCode)+", payload:\n"+String(httpresponse.payload));
-        delay(1000);
-      }
-      else
-        break;
+  httpresp result;
+  result.HTTPStatusCode = 0;
+  result.payload = (char*)malloc(HTTP_RESPONSE_PAYLOAD_SIZE);
+  memset(result.payload, 0, HTTP_RESPONSE_PAYLOAD_SIZE);
+  POST(&result, getProfile().c_str());
+  
+  while ( result.HTTPStatusCode != 200){
+    Serial.println("[Register]Fail, code"+String(result.HTTPStatusCode));
+    delay(1000);
+    memset(result.payload, 0, HTTP_RESPONSE_PAYLOAD_SIZE);
+    POST(&result, getProfile().c_str());
   }
   
-  // post successfully
   StaticJsonBuffer<512> JB_root;
-  JsonObject& JO_root = JB_root.parseObject(httpresponse.payload);
+  JsonObject& JO_root = JB_root.parseObject(result.payload);
   httppw = JO_root["password"].as<String>();
   Serial.println("[Register]httppw:"+httppw);
-  
-  return (httpresponse.HTTPStatusCode);
+  if(result.payload != NULL)
+    free(result.payload);
+  return (result.HTTPStatusCode);
 }
 int push(char *df_name, String value){  //return httpcode
-  httpresp httpresponse;
-  httpresponse.payload = (char*)malloc(sizeof(char)*HTTP_RESP_PAYLOAD_SIZE);
-  
 #ifdef debug_mode
   Serial.println("[PUSH]" + String(df_name)+":"+String(value));
 #endif
 
-  PUT(&httpresponse, value.c_str(), df_name);
-  if (httpresponse.HTTPStatusCode != 200) {
-    Serial.println("[PUSH] \""+String(df_name)+"\":" +value+"..." + (String)httpresponse.HTTPStatusCode );
+  httpresp result;
+  result.HTTPStatusCode = 0;
+  result.payload = (char*)malloc(HTTP_RESPONSE_PAYLOAD_SIZE);
+  memset(result.payload, 0, HTTP_RESPONSE_PAYLOAD_SIZE);
+  PUT(&result, value.c_str(), df_name);
+  
+  if (result.HTTPStatusCode != 200) {
+    Serial.println("[PUSH] \""+String(df_name)+"\":" +value+"..." + String(result.HTTPStatusCode) );
     continue_error_quota--;
   }
   else
     continue_error_quota = 5;
-  return httpresponse.HTTPStatusCode;
+  
+  if(result.payload != NULL)
+    free(result.payload);
+  return result.HTTPStatusCode;
 }
 String pull(char *df_name){
-  httpresp httpresponse;
-  httpresponse.payload = (char*)malloc(sizeof(char)*HTTP_RESP_PAYLOAD_SIZE);
-  GET(&httpresponse, df_name);
+  httpresp result;
+  result.HTTPStatusCode = 0;
+  result.payload = (char*)malloc(HTTP_RESPONSE_PAYLOAD_SIZE);
+  memset(result.payload, 0, HTTP_RESPONSE_PAYLOAD_SIZE);
+  GET(&result, df_name);
   
-  if (httpresponse.HTTPStatusCode != 200) {
-    Serial.println("[PULL]" + String(df_name) + "," + String(httpresponse.HTTPStatusCode) +"\n"+String(httpresponse.payload)+"----------------------");  
+
+  if (result.HTTPStatusCode != 200) {
+    Serial.println("[PULL]" + String(df_name) + "," + String(result.HTTPStatusCode) +"\n"+String(result.payload));  
     continue_error_quota--;
   }
   else {
     continue_error_quota = 5;
-    StaticJsonBuffer<512> JB_resp;
-    JsonObject& root = JB_resp.parseObject(String(httpresponse.payload));
+    StaticJsonBuffer<HTTP_RESPONSE_PAYLOAD_SIZE> JB_resp;
+    JsonObject& root = JB_resp.parseObject(String(result.payload));
     if( root["samples"][0][0].as<String>() !=  JO_TS[df_name].as<String>()) {
       JO_TS[df_name] = root["samples"][0][0].as<String>();
       String last_data = root["samples"][0][1][0].as<String>();
 #ifdef debug_mode
       Serial.println("[PULL]"+String(df_name)+":"+last_data);
 #endif
+      if(result.payload != NULL)
+        free(result.payload);
       return root["samples"][0][1][0].as<String>();
     }
   }
+  if(result.payload != NULL)
+    free(result.payload);
   return "___NULL_DATA___";
 }
 
@@ -114,7 +129,6 @@ void setup(void){
   Serial.begin(115200);
   //clr_eeprom(1);
   SetDeviceID();
-  
   WIFI_init();
   Register();
   init_ODFtimestamp();

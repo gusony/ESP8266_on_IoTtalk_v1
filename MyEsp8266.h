@@ -14,8 +14,17 @@
   #define DM_NAME  "ESP12F" // Device Module name  
   #define debug_mode
   #define MAX_HTTP_PACKAGE_SIZE 512
-  #define HTTP_RESP_PAYLOAD_SIZE 128
-  
+  #define HTTP_RESPONSE_PAYLOAD_SIZE 256
+
+  #ifdef debug_mode
+    //#define debug_mode_SEND
+    //#define debug_mode_GET
+    //#define debug_mode_PUT
+    //#define debug_mode_POST
+    //#define debug_mode_getprofile
+    //#define debug_mode_register
+    //#define debug_mode_PUSH
+  #endif
 
   /* include general/common library */
   #include <ArduinoJson.h>        // Json library
@@ -75,7 +84,7 @@
 
 typedef struct httpresp{
   int HTTPStatusCode;
-  char* payload; 
+  char* payload;
 }httpresp;
 
 void SetDeviceID(void);
@@ -84,7 +93,7 @@ void SetDeviceID(void);
 //#ifdef USE_ETHERNET
   void connect_to_ethernet(void);
   String prepare_http_package(const char* HTTP_Type, const char* feature, const char* payload);
-  void Send_HTTPS(httpresp *result,const char* HTTP_Type, const char* feature, const char* payload, bool WillResp);
+  void Send_HTTPS(httpresp *result, const char* HTTP_Type, const char* feature, const char* payload);
   void GET(httpresp *result, const char* feature);
   void PUT(httpresp *result, const char* value, const char* feature );
   void POST(httpresp *result, const char* payload);
