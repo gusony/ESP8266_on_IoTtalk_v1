@@ -149,7 +149,7 @@ void loop(void){
   if (millis() - cycleTimestamp > 1000) {
     push("ESP12F_IDF", String(ESP8266TrueRandom.random() % 1000 + 1));
     delay(100);
-    Serial.println("[loop]pull"+pull("ESP12F_ODF"));
+    Serial.println("[loop]pull:"+pull("ESP12F_ODF"));
     cycleTimestamp = millis();
   }
 
