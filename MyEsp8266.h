@@ -3,27 +3,29 @@
 */
 #ifndef all_header
   #define all_header
-  
+
   /* define what you need */
-  //#define USE_ETHERNET
-  #define USE_WIFI
-  #define USE_SSL
-  #define V1  // Select iottalk version
-  //define V2
+  #define USE_ETHERNET
+  //#define USE_WIFI
+  //#define USE_SSL
+  #define V1
+  //#define V2
   #define DF_LIST {"ESP12F_IDF", "ESP12F_ODF"}
-  #define DM_NAME  "ESP12F" // Device Module name  
-  #define debug_mode
+  #define DM_NAME  "ESP12F" // Device Module name
+
   #define MAX_HTTP_PACKAGE_SIZE 512
   #define HTTP_RESPONSE_PAYLOAD_SIZE 256
 
+  #define debug_mode
   #ifdef debug_mode
-    //#define debug_mode_SEND
-    //#define debug_mode_GET
-    //#define debug_mode_PUT
-    //#define debug_mode_POST
-    //#define debug_mode_getprofile
-    //#define debug_mode_register
-    //#define debug_mode_PUSH
+    #define debug_mode_SEND
+    #define debug_mode_GET
+    #define debug_mode_PUT
+    #define debug_mode_POST
+    #define debug_mode_getprofile
+    #define debug_mode_register
+    #define debug_mode_PUSH
+    #define debug_checknetstatus
   #endif
 
   /* include general/common library */
@@ -39,7 +41,7 @@
     #include <ESP8266WiFiMulti.h>
     #include <ESP8266HTTPClient.h>
     #include <ESP8266TrueRandom.h> // uuid library
-    
+
     #ifdef USE_SSL
       #include <WiFiClientSecure.h>
     #endif
@@ -68,7 +70,7 @@
   /* pin out */
   #define UPLOAD       0  // when you want to upload code to esp8266, this pin must be LOW, will not be used on Nodemcu
   #define LEDPIN       2  // on board led
-  #define CLEAREEPROM  13 //hold for 5 second , it will erease the contain in eeprom
+  #define CLEAREEPROM  13 //hold for 5 second , it will erease the contain in eeprom   
 
   #ifdef USE_ETHERNET
     #define ETHERNET_SO  12
@@ -79,15 +81,14 @@
 #endif
 
 
-#ifdef debug_mode
-#endif
-
 typedef struct httpresp{
   int HTTPStatusCode;
   char* payload;
 }httpresp;
 
 void SetDeviceID(void);
+void CheckNetworkStatus(void);
+void Init(void);
 
 
 //#ifdef USE_ETHERNET
