@@ -39,8 +39,7 @@ Upload Speed|115200
 
 # Feature Work
 1. ~~用bs170替換~~
-2. HTTPS加密
-3. 測試POST() function , #else 情況下的return 是否正常
+2. 寫Init()
 
 # variable
 * ServerIP/host : char array, global variable
