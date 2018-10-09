@@ -10,7 +10,7 @@
   //#define USE_SSL
   #define V1
   //#define V2
-  #define DF_LIST {"ESP12F_IDF", "ESP12F_ODF"}
+  #define DF_LIST {"ESP12F_IDF", "ESP12F_ODF","ESP12F_test"}
   #define DM_NAME  "ESP12F" // Device Module name
 
   #define MAX_HTTP_PACKAGE_SIZE 512
@@ -26,6 +26,7 @@
     #define debug_mode_register
     #define debug_mode_PUSH
     #define debug_checknetstatus
+    #define debug_getProfile
   #endif
 
   /* include general/common library */

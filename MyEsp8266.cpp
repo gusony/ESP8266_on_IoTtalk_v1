@@ -9,7 +9,7 @@ char deviceid[37]; // v1 use 12 char, v2 use 36 char
 
 #ifdef USE_ETHERNET
   EthernetClient TCPclient;
-  byte mac[6] = {0x00, 0x01, 0x02, 0x03, 0x04, 0x07}; // you can set it as you want
+  byte mac[6] = {0x00, 0x01, 0x02, 0x03, 0x04, 0x08}; // you can set it as you want
 #elif defined USE_WIFI
   byte mac[6]; // use esp8266 itself mac address
   char wifissid[50] = "";
@@ -46,11 +46,13 @@ void SetDeviceID(void){
 
 #ifdef V1
   for(int i=0; i<6; i++) DID += mac[i]<0x10 ? "0"+String(mac[i], HEX) : String(mac[i], HEX);
+  Serial.println("DID:"+DID);
+  Serial.println("DID.length():"+String(DID.length()));
 #elif defined V2
   DID = ESP8266TrueRandom.uuidToString(mac);
 #endif
 
-  DID.toCharArray(deviceid, DID.length());
+  DID.toCharArray(deviceid, DID.length()+1);
 }
 void CheckNetworkStatus(void){
 #ifdef USE_WIFI
@@ -77,10 +79,13 @@ void Init(void){
   DEFAULT_SERVER_IP
   
 #elif defined USE_ETHERNET
-  pinMode(ETHERNET_CS, INPUT);
-  while(digitalRead(ETHERNET_CS) == LOW){}
+  //pinMode(ETHERNET_CS, INPUT);
+  //delay(10);
+  //while(digitalRead(ETHERNET_CS) == LOW){}
+  //delay(10);
   //pinMode(ETHERNET_CS, OUTPUT);
-  Serial.println();
+  //delay(10);
+  //Serial.println();
   connect_to_ethernet();
   String(DEFAULT_SERVER_IP).toCharArray(ServerIP, 50);
   
@@ -134,16 +139,12 @@ void Send_HTTPS(httpresp *result, const char* HTTP_Type, const char* feature, co
           result->HTTPStatusCode = (http_resp_package[9] - 48) * 100 + (http_resp_package[10] - 48) * 10 + http_resp_package[11] - 48;
         if(result->HTTPStatusCode != 200)
           Serial.println(http_resp_package);
-#ifdef debug_mode_SEND
-        //Serial.println("[Send]httpcode:"+String(result->HTTPStatusCode));
-#endif
+
         //get http response payload
         string_indexof = String(http_resp_package).indexOf("{");
         if(string_indexof >= 0){
           temp = String(http_resp_package).substring(string_indexof);
-#ifdef debug_mode_SEND
-          Serial.println("[Send]temp:"+temp);
-#endif
+
           if(temp.length() < HTTP_RESPONSE_PAYLOAD_SIZE)
             temp.toCharArray(result->payload, temp.length());
           else{
@@ -233,7 +234,8 @@ void POST(httpresp *result, const char* payload) {
 void connect_to_ethernet(void) {
   while (1) {    
     Serial.print("[Ethernet]begin");
-    if ((Ethernet.localIP() != IPAddress(0,0,0,0)) || (Ethernet.begin(mac))) {
+    //if ((Ethernet.localIP() != IPAddress(0,0,0,0)) || (Ethernet.begin(mac))) {
+    if(Ethernet.begin(mac) ){
       Serial.println(" successful");
       break;
     }

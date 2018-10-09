@@ -4,7 +4,6 @@
 
 long cycleTimestamp;
 int continue_error_quota = 5;
-
 extern char deviceid[37];
 #ifdef USE_SSL
 extern String httppw;
@@ -15,6 +14,7 @@ extern String httppw;
 StaticJsonBuffer<256> JB_TS;//JsonBuffer Timestamp
 JsonObject& JO_TS = JB_TS.createObject();
 #endif
+
 void init_ODFtimestamp(void){
   const char* df_list[] = DF_LIST;
   for(int i = 0; i < (sizeof(df_list)/4);i++)
@@ -26,12 +26,14 @@ String  getProfile(void){
   StaticJsonBuffer<512> JB_root;
   JsonObject& JO_root = JB_root.createObject();
   JsonObject& JO_profile = JO_root.createNestedObject("profile");
-  JO_profile["d_name"] =  String(DM_NAME) + "." + String(deviceid).substring(7);
+
+  JO_profile["d_name"] =  String(DM_NAME) + "." + String(deviceid).substring(8);
   JO_profile["dm_name"] = DM_NAME;
   JO_profile["is_sim"] = false;
   JsonArray& JO_df_list = JO_profile.createNestedArray("df_list");
-  for(int i = 0; i < sizeof(df_list)/4; i++)
+  for(int i = 0; i < sizeof(df_list)/2; i++)
     JO_df_list.add( String(df_list[i]) );
+
   JO_root.printTo(result);
   JB_root.clear();
 
