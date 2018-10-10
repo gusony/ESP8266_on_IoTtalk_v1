@@ -46,8 +46,6 @@ void SetDeviceID(void){
 
 #ifdef V1
   for(int i=0; i<6; i++) DID += mac[i]<0x10 ? "0"+String(mac[i], HEX) : String(mac[i], HEX);
-  Serial.println("DID:"+DID);
-  Serial.println("DID.length():"+String(DID.length()));
 #elif defined V2
   DID = ESP8266TrueRandom.uuidToString(mac);
 #endif
@@ -65,35 +63,29 @@ void CheckNetworkStatus(void){
   #endif
   if(String(Ethernet.localIP()).index("0.0.0.0") >= 0)
     connect_to_ethernet();
-#endif 
+#endif
 }
 void Init(void){
   delay(10);
   Serial.begin(115200);
   //randomSeed(analogRead(0));
-  
+
 #ifdef USE_WIFI
   EEPROM.begin(512);
   pinMode(CLEAREEPROM, INPUT_PULLUP); //GPIO13: clear eeprom button
   WIFI_init();
   DEFAULT_SERVER_IP
-  
+
 #elif defined USE_ETHERNET
   //pinMode(ETHERNET_CS, INPUT);
-  //delay(10);
   //while(digitalRead(ETHERNET_CS) == LOW){}
-  //delay(10);
-  //pinMode(ETHERNET_CS, OUTPUT);
-  //delay(10);
-  //Serial.println();
   connect_to_ethernet();
   String(DEFAULT_SERVER_IP).toCharArray(ServerIP, 50);
-  
-#endif 
 
-  SetDeviceID();  
+#endif
+
+  SetDeviceID();
 }
-
 String prepare_http_package(const char* HTTP_Type, const char* feature, const char* payload){
   String package = String(HTTP_Type) + " /" + String(deviceid) ;  //sum of http string that will be send out
   if (feature != "")
@@ -114,7 +106,7 @@ String prepare_http_package(const char* HTTP_Type, const char* feature, const ch
   return(package);
 }
 void Send_HTTPS(httpresp *result, const char* HTTP_Type, const char* feature, const char* payload) {
-#ifdef debug_mode_SEND
+#ifdef debug_SEND
   Serial.println("[Sned]Start");
 #endif
   String temp = "";
@@ -152,7 +144,7 @@ void Send_HTTPS(httpresp *result, const char* HTTP_Type, const char* feature, co
             Serial.println("[Send]temp:\n"+temp);
             temp.toCharArray(result->payload, HTTP_RESPONSE_PAYLOAD_SIZE);
           }
-#ifdef debug_mode_SEND
+#ifdef debug_SEND
           Serial.println("[Send]result->payload:"+String(result->payload));
 #endif
         }
@@ -211,7 +203,7 @@ void PUT(httpresp *result, const char* value, const char* df_name ) {
 #endif
 }
 void POST(httpresp *result, const char* payload) {
-#ifdef debug_mode_POST
+#ifdef debug_POST
   Serial.println("[POST]Start");
 #endif
 #if defined(USE_ETHERNET) || defined(USE_SSL)
@@ -227,30 +219,24 @@ void POST(httpresp *result, const char* payload) {
 
 }
 
-
-
-
 #ifdef USE_ETHERNET
 void connect_to_ethernet(void) {
-  while (1) {    
+  IPAddress staticip(192,168,1,15);
+  while (1) {
     Serial.print("[Ethernet]begin");
-    //if ((Ethernet.localIP() != IPAddress(0,0,0,0)) || (Ethernet.begin(mac))) {
-    if(Ethernet.begin(mac) ){
+    if ((Ethernet.localIP() != IPAddress(0,0,0,0)) || (Ethernet.begin(mac))) {
+    //if(Ethernet.begin(mac) ){
       Serial.println(" successful");
       break;
     }
     else
       Serial.println(" fail");
+    delay(1000);
   }
   Serial.print("[Ethernet]localIP:");
   Serial.println(Ethernet.localIP());
 }
 #endif
-
-
-
-
-
 
 #ifdef USE_WIFI
 /*  WiFi init

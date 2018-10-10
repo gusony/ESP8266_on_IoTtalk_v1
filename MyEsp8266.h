@@ -18,10 +18,10 @@
 
   #define debug_mode
   #ifdef debug_mode
-    #define debug_mode_SEND
+    #define debug_SEND
     #define debug_mode_GET
     #define debug_mode_PUT
-    #define debug_mode_POST
+    #define debug_POST
     #define debug_mode_getprofile
     #define debug_mode_register
     #define debug_mode_PUSH
@@ -71,7 +71,7 @@
   /* pin out */
   #define UPLOAD       0  // when you want to upload code to esp8266, this pin must be LOW, will not be used on Nodemcu
   #define LEDPIN       2  // on board led
-  #define CLEAREEPROM  13 //hold for 5 second , it will erease the contain in eeprom   
+  #define CLEAREEPROM  13 //hold for 5 second , it will erease the contain in eeprom
 
   #ifdef USE_ETHERNET
     #define ETHERNET_SO  12
