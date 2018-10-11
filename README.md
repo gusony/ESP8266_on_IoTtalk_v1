@@ -1,4 +1,14 @@
-# ESP12F CONNECT pinout
+#content
+* [Pinout](#ESP12F CONNECT pinout)
+* [Arduino IDE setting](Arduino IDE setting)
+* [Arduino Library](#Arduino Library)
+* [Set Library Parameter](Set Library Parameter)
+* [Feature Work](Feature Work)
+* [variable](variable)
+* [Notice](#Notice)
+
+
+## ESP12F CONNECT pinout
 |ESP12F |UART to USB|
 |:-----:|:-----:|
 |Vcc|3.3v|
@@ -8,7 +18,7 @@
 |RX|TX|
 |GPIO|LOW(when upload)|
 
-# Arduino IDE setting
+## Arduino IDE setting
 Type|Parameter
 :---:|:---:
 Board|Generic ESP8266 Module
@@ -21,12 +31,12 @@ Debug Level|None
 Reset Method|ck
 Upload Speed|115200
 
-# Arduino Library:
+## Arduino Library:
 * [pubsubclient v2.6.0](https://github.com/knolleary/pubsubclient)  ( [API](https://pubsubclient.knolleary.net/) )
 * [UIPEthernet v2.0.6](https://github.com/UIPEthernet/UIPEthernet)
 * [ArduinoJson v5.13.1](https://arduinojson.org/?utm_source=meta&utm_medium=library.properties)
 
-# Set Library Parameter
+## Set Library Parameter
 ```
 [UIPEthernet/utility/uipethernet-conf.h]
 	#define UIP_SOCKET_NUMPACKETS    4
@@ -37,12 +47,15 @@ Upload Speed|115200
 	#define MQTT_MAX_PACKET_SIZE 512
 ```
 
-# Feature Work
+## Feature Work
 1. ~~用bs170替換~~
 2. 寫Init()
 
-# variable
+## variable
 * ServerIP/host : char array, global variable
 * ServerPort    : #define , global variable
 * url           : String, global variable, only wifi http use it in Register()/PUSH()/PULL() function, **should change it**
 
+
+## Notice :bangbang:
+1.make sure that memory usage and point are used carefully
