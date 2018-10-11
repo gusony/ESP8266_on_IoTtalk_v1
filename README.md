@@ -1,11 +1,11 @@
-# content
-* [Pinout](#Pinout)
-* [Arduino IDE setting](Arduino-IDE-setting)
-* [Arduino Library](#Arduino-Library)
-* [Set Library Parameter](#Set-Library-Parameter)
-* [Feature Work](#Feature-Work)
-* [variable](#variable)
-* [Notice](#Notice)
+# Contents
+- [Pinout](#pinout)
+- [Arduino IDE setting](#arduino-ide-setting)
+- [Arduino Library](#arduino-library)
+- [Set Library Parameter](#set-library-parameter)
+- [Feature Work](#feature-work)
+- [Variable](#variable)
+- [Notice](#notice)
 
 
 ## Pinout
@@ -51,7 +51,7 @@ Upload Speed|115200
 1. ~~用bs170替換~~
 2. 寫Init()
 
-## variable
+## Variable
 * ServerIP/host : char array, global variable
 * ServerPort    : #define , global variable
 * url           : String, global variable, only wifi http use it in Register()/PUSH()/PULL() function, **should change it**
