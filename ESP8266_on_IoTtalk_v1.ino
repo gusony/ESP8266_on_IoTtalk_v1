@@ -31,7 +31,7 @@ String  getProfile(void){
   JO_profile["dm_name"] = DM_NAME;
   JO_profile["is_sim"] = false;
   JsonArray& JO_df_list = JO_profile.createNestedArray("df_list");
-  for(int i = 0; i < sizeof(df_list)/2; i++)
+  for(int i = 0; i < sizeof(df_list)/4; i++)
     JO_df_list.add( String(df_list[i]) );
 
   JO_root.printTo(result);

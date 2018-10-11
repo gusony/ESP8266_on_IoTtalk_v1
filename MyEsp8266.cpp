@@ -223,6 +223,7 @@ void POST(httpresp *result, const char* payload) {
 void connect_to_ethernet(void) {
   IPAddress staticip(192,168,1,15);
   while (1) {
+    Serial.println(Ethernet.localIP());
     Serial.print("[Ethernet]begin");
     if ((Ethernet.localIP() != IPAddress(0,0,0,0)) || (Ethernet.begin(mac))) {
     //if(Ethernet.begin(mac) ){
