@@ -1,14 +1,14 @@
 #content
-* [Pinout](#ESP12F CONNECT pinout)
-* [Arduino IDE setting](Arduino IDE setting)
-* [Arduino Library](#Arduino Library)
-* [Set Library Parameter](Set Library Parameter)
-* [Feature Work](Feature Work)
-* [variable](variable)
+* [Pinout](#Pinout)
+* [Arduino IDE setting](Arduino-IDE-setting)
+* [Arduino Library](#Arduino-Library)
+* [Set Library Parameter](#Set-Library-Parameter)
+* [Feature Work](#Feature-Work)
+* [variable](#variable)
 * [Notice](#Notice)
 
 
-## ESP12F CONNECT pinout
+## Pinout
 |ESP12F |UART to USB|
 |:-----:|:-----:|
 |Vcc|3.3v|
@@ -59,3 +59,5 @@ Upload Speed|115200
 
 ## Notice :bangbang:
 1.make sure that memory usage and point are used carefully
+
+---
