@@ -3,6 +3,7 @@
 #include "MyEsp8266.h"
 
 long cycleTimestamp;
+/* csmapi */
 int continue_error_quota = 5;
 extern char deviceid[37];
 #ifdef USE_SSL
