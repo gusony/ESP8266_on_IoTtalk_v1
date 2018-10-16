@@ -107,10 +107,10 @@ String prepare_http_package(const char* HTTP_Type, const char* feature, const ch
 }
 void Send_HTTPS(httpresp *result, const char* HTTP_Type, const char* feature, const char* payload) {
 #ifdef debug_SEND
-  Serial.println("[Sned]Start");
+  Serial.println("[Send]Start");
 #endif
   String temp = "";
-  int resp_timeout = 1000;
+  const int resp_timeout = 100;
   int package_size = 0;
   int string_indexof;
   long start_time = 0;
@@ -122,6 +122,7 @@ void Send_HTTPS(httpresp *result, const char* HTTP_Type, const char* feature, co
 
     start_time = millis();
     while (millis() - start_time < resp_timeout) {
+      Serial.println("[Send]resp_time:"+String(millis() - start_time));
       package_size = TCPclient.available();
       if(package_size > 0){
         TCPclient.read((uint8_t*)http_resp_package, package_size);
@@ -148,10 +149,13 @@ void Send_HTTPS(httpresp *result, const char* HTTP_Type, const char* feature, co
           Serial.println("[Send]result->payload:"+String(result->payload));
 #endif
         }
+        if(TCPclient.available() <=0 )
+          break;
       }
     }
     if(http_resp_package != NULL)
       free(http_resp_package);
+    TCPclient.flush();
     TCPclient.stop();
   }
   else{
