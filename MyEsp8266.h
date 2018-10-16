@@ -24,9 +24,10 @@
 //    #define debug_POST
 //    #define debug_mode_getprofile
 //    #define debug_mode_register
-//    #define debug_mode_PUSH
 //    #define debug_checknetstatus
 //    #define debug_getProfile
+//    #define debug_pull
+//    #define debug_push
   #endif
 
   /* include general/common library */
