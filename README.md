@@ -45,7 +45,7 @@ Upload Speed|115200
     #define UIP_SOCKET_NUMPACKETS    4
     #define UIP_CONF_MAX_CONNECTIONS 3
     #define UIP_CONF_UDP_CONNS 1 //reduce memory usage
-
+    #define UIP_CONNECT_TIMEOUT 5
 [pubsubclient/src/PubSubClient.h]
     #define MQTT_MAX_PACKET_SIZE 512
 ```
