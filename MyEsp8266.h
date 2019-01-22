@@ -5,9 +5,9 @@
   #define all_header
 
   /* define what you need */
-  #define USE_ETHERNET
-  //#define USE_WIFI
-  //#define USE_SSL
+  //#define USE_ETHERNET
+  #define USE_WIFI
+  #define USE_SSL
   #define V1
   //#define V2
   #define DF_LIST {"ESP12F_IDF", "ESP12F_ODF"}

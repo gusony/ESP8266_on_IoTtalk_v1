@@ -4,6 +4,7 @@ long cycleTimestamp;
 extern int continue_error_quota;
 
 void setup(){
+  #warning test warning
   Init();
   Register();
   init_ODFtimestamp();
@@ -25,7 +26,7 @@ void loop(){
 
   if (millis() - cycleTimestamp > 1000) {
     //push("ESP12F_IDF", String(ESP8266TrueRandom.random() % 1000 + 1));
-    push("ESP12F_IDF", String(random(100)) );
+    push("ESP12F_IDF", String(random(100)));
     delay(100);
     Serial.println("[loop]pull:"+pull("ESP12F_ODF"));
     cycleTimestamp = millis();

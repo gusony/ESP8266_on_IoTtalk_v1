@@ -44,3 +44,16 @@
   //#define DHTTYPE DHT22   // DHT 22  (AM2302), AM2321
   //#define DHTTYPE DHT21   // DHT 21 (AM2301)
 #endif
+
+
+
+
+
+/* ****************************************
+ * String to Char*
+ * String S = "Hello";
+ * char *c = const_cast<char*>(S.c_str());
+ * ****************************************
+ * 
+ * /
+ */

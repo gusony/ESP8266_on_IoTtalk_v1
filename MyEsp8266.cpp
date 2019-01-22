@@ -6,15 +6,16 @@ int tcp_connect_error_times = 5;
 char ServerIP[50];
 char deviceid[37]; // v1 use 12 char, v2 use 36 char
 
-
+//according to 'MyEsp8266.h' , choose the way you want to use to connect Internet 
 #ifdef USE_ETHERNET
   EthernetClient TCPclient;
   byte mac[6] = {0x00, 0x01, 0x02, 0x03, 0x04, 0x08}; // you can set it as you want
+  
 #elif defined USE_WIFI
   byte mac[6]; // use esp8266 itself mac address
-  char wifissid[50] = "";
-  char wifipass[50] = "";
-  uint8_t wifimode = 1; //1:AP , 0: STA
+  char wifissid[50] = ""; //store Wi-Fi SSID , it can come from user keyying in or read from EEPROM
+  char wifipass[50] = ""; //store Wi-Fi password
+  uint8_t wifimode = 1; //1:AP , 0: STA, 
   WiFiClient espClient;
   ESP8266WebServer server ( 80 );
 
@@ -56,7 +57,7 @@ void CheckNetworkStatus(void){
 #ifdef USE_WIFI
   if( WiFi.status() != WL_CONNECTED )
     connect_to_wifi();
-#elif define USE_ETHERNET
+#elif defined USE_ETHERNET
   #ifdef debug_checknetstatus
   Serial.print("[Ethernet]localIP:");
   Serial.println(Ethernet.localIP());
@@ -74,7 +75,7 @@ void Init(void){
   EEPROM.begin(512);
   pinMode(CLEAREEPROM, INPUT_PULLUP); //GPIO13: clear eeprom button
   WIFI_init();
-  DEFAULT_SERVER_IP
+  //DEFAULT_SERVER_IP
 
 #elif defined USE_ETHERNET
   //pinMode(ETHERNET_CS, INPUT);
