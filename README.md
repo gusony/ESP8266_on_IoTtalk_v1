@@ -19,6 +19,13 @@
 |GPIO0|HISH(LOW when upload)|
 |Reset|HIGH(LOW when used)|
 
+:heavy_exclamation_mark::heavy_exclamation_mark::heavy_exclamation_mark:
+ESP8266 use 3.3V 
+BUT! you can use a voltage regulator([ASM1117-3.3](http://www.advanced-monolithic.com/pdf/ds1117.pdf)).
+AMS1117-3.3 Vin=5V, Vout=3.3V
+So you can use 5V voltage.
+
+
 ## Arduino IDE setting
 Type|Parameter
 :---:|:---:
