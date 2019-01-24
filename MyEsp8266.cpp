@@ -1,7 +1,5 @@
 #include "MyEsp8266.h"
 
-
-
 int tcp_connect_error_times = 5;
 char ServerIP[50];
 char deviceid[37]; // v1 use 12 char, v2 use 36 char
@@ -21,7 +19,7 @@ char deviceid[37]; // v1 use 12 char, v2 use 36 char
 
   #ifdef USE_SSL
     WiFiClientSecure TCPclient;
-    const char* fingerprint = "FE BA 2F E1 56 88 9D EC 0B 19 F8 41 BB 9D 6E 55 06 16 DF 8F";
+    const char* fingerprint = "BF D3 C5 AE D2 75 9F 12 C4 2A 7A 1B 18 F4 9F F5 70 24 22 32";
     String httppw = "";
   #else
     HTTPClient httpclient;
@@ -36,9 +34,7 @@ char deviceid[37]; // v1 use 12 char, v2 use 36 char
   #endif
 #endif
 
-
-
-
+//general function
 void SetDeviceID(void){
   String DID = ""; //Device ID
 #ifdef USE_WIFI
@@ -71,23 +67,21 @@ void Init(void){
   delay(10);
   Serial.begin(115200);
   //randomSeed(analogRead(0));
-
+  SetDeviceID();
+  
 #ifdef USE_WIFI
   EEPROM.begin(512);
-  pinMode(CLEAREEPROM, INPUT_PULLUP); //GPIO13: clear eeprom button
+  pinMode(CLEAREEPROM, INPUT_PULLUP); 
   WIFI_init();
-  //DEFAULT_SERVER_IP
-
 #elif defined USE_ETHERNET
-  //pinMode(ETHERNET_CS, INPUT);
-  //while(digitalRead(ETHERNET_CS) == LOW){}
   connect_to_ethernet();
   String(DEFAULT_SERVER_IP).toCharArray(ServerIP, 50);
-
 #endif
 
-  SetDeviceID();
+  
 }
+
+//about http package
 String prepare_http_package(const char* HTTP_Type, const char* feature, const char* payload){
   String package = String(HTTP_Type) + " /" + String(deviceid) ;  //sum of http string that will be send out
   if (feature != "")
@@ -120,63 +114,70 @@ void Send_HTTPS(httpresp *result, const char* HTTP_Type, const char* feature, co
   char * http_resp_package = (char*)malloc(MAX_HTTP_PACKAGE_SIZE);
   memset(http_resp_package, 0, MAX_HTTP_PACKAGE_SIZE);
 
-  if (TCPclient.connect(ServerIP, ServerPort)) {
-    TCPclient.println(prepare_http_package(HTTP_Type, feature, payload));
-
-    start_time = millis();
-    while (millis() - start_time < resp_timeout) {
-      Serial.println("[Send]resp_time:"+String(millis() - start_time));
-      package_size = TCPclient.available();
-      if(package_size > 0){
-        TCPclient.read((uint8_t*)http_resp_package, package_size);
-        //get http state code
-        string_indexof = String(http_resp_package).indexOf("HTTP/");
-        if(string_indexof >= 0)
-          result->HTTPStatusCode = (http_resp_package[9] - 48) * 100 + (http_resp_package[10] - 48) * 10 + http_resp_package[11] - 48;
-        if(result->HTTPStatusCode != 200)
-          Serial.println(http_resp_package);
-
-        //get http response payload
-        string_indexof = String(http_resp_package).indexOf("{");
-        if(string_indexof >= 0){
-          temp = String(http_resp_package).substring(string_indexof);
-
-          if(temp.length() < HTTP_RESPONSE_PAYLOAD_SIZE)
-            temp.toCharArray(result->payload, temp.length());
-          else{
-            Serial.println("[Send]HTTP_RESPONSE_PAYLOAD_SIZE not enough");
-            Serial.println("[Send]temp:\n"+temp);
-            temp.toCharArray(result->payload, HTTP_RESPONSE_PAYLOAD_SIZE);
-          }
-#ifdef debug_SEND
-          Serial.println("[Send]result->payload:"+String(result->payload));
-#endif
-        }
-        if(TCPclient.available() <=0 )
-          break;
-      }
-    }
-    if(http_resp_package != NULL)
-      free(http_resp_package);
-    TCPclient.flush();
-    TCPclient.stop();
-  }
-  else{
-    Serial.println("[Send]Tcp Connect fail");
-    tcp_connect_error_times--;
-    if(tcp_connect_error_times<=0){
+  if(!TCPclient.connected()){
+    Serial.println("[SEND]TCP isn't under connected");
+    Serial.println("[SEND]ServerIP="+String(ServerIP)+","+String(ServerPort));
+    
+    if(!TCPclient.connect(ServerIP, ServerPort)){
+      Serial.println("[Send]Tcp Connect fail");
+      tcp_connect_error_times--;
+      if(tcp_connect_error_times<=0){
 #if defined(USE_ETHERNET)
-      connect_to_ethernet();
+        connect_to_ethernet();
 #elif defined(USE_SSL)
-      connect_to_wifi();
+        connect_to_wifi();
 #endif
-      tcp_connect_error_times = 5 ;
+        tcp_connect_error_times = 5 ;
+      }
+      result->HTTPStatusCode = -1;
+      if(http_resp_package != NULL)
+        free(http_resp_package);
+      TCPclient.flush();
+      TCPclient.stop();
+      return;
     }
-    result->HTTPStatusCode = -1;
-    if(http_resp_package != NULL)
-      free(http_resp_package);
-    TCPclient.flush();
+    
   }
+  
+  TCPclient.println(prepare_http_package(HTTP_Type, feature, payload));
+
+  start_time = millis();
+  while (millis() - start_time < resp_timeout) {
+    //Serial.println("[Send]resp_time:"+String(millis() - start_time));
+    package_size = TCPclient.available();
+    if(package_size > 0){
+      TCPclient.read((uint8_t*)http_resp_package, package_size);
+      //get http state code
+      string_indexof = String(http_resp_package).indexOf("HTTP/");
+      if(string_indexof >= 0)
+        result->HTTPStatusCode = (http_resp_package[9] - 48) * 100 + (http_resp_package[10] - 48) * 10 + http_resp_package[11] - 48;
+      if(result->HTTPStatusCode != 200)
+        Serial.println("-------------------\n"+String(http_resp_package)+"\n-------------------");
+
+      //get http response payload
+      string_indexof = String(http_resp_package).indexOf("{");
+      if(string_indexof >= 0){
+        temp = String(http_resp_package).substring(string_indexof);
+
+        if(temp.length() < HTTP_RESPONSE_PAYLOAD_SIZE)
+          temp.toCharArray(result->payload, temp.length());
+        else{
+          Serial.println("[Send]HTTP_RESPONSE_PAYLOAD_SIZE not enough");
+          Serial.println("[Send]temp:\n"+temp);
+          temp.toCharArray(result->payload, HTTP_RESPONSE_PAYLOAD_SIZE);
+        }
+#ifdef debug_SEND
+        Serial.println("[Send]result->payload:"+String(result->payload));
+#endif
+      }
+      if(TCPclient.available() <=0 )
+        break;
+    }
+  }
+  if(http_resp_package != NULL)
+    free(http_resp_package);
+  TCPclient.flush();
+  TCPclient.stop();
 }
 void GET(httpresp *result, const char* df_name ) {
 #ifdef debug_mode_GET
@@ -432,7 +433,7 @@ void handleRoot(void){
   temp += scan_network();
   temp += "Password:<br>";
   temp += "<input type=\"password\" name=\"Password\" vplaceholder=\"輸入AP密碼\" style=\"width: 150px;\">";
-  temp += "<br><br>IoTtalk Server IP<br>";
+  temp += "<br><br>IoTtalk Server IP(optional)<br>";
   temp += "<input type=\"serverIP\" name=\"serverIP\" value=\"" + String(ServerIP) + "\" style=\"width: 150px;\">";
   temp += "<br><br><input type=\"submit\" value=\"Submit\" on_click=\"javascript:alert('TEST');\">";
   temp += "</div></form><br>";
