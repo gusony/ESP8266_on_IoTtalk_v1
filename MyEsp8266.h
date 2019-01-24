@@ -18,12 +18,12 @@
 
   #define debug_mode
   #ifdef debug_mode
-//    #define debug_SEND
+    #define debug_SEND
 //    #define debug_mode_GET
 //    #define debug_mode_PUT
-//    #define debug_POST
+    #define debug_POST
 //    #define debug_mode_getprofile
-//    #define debug_mode_register
+    #define debug_mode_register
 //    #define debug_checknetstatus
 //    #define debug_getProfile
 //    #define debug_pull

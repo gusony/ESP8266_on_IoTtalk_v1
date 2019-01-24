@@ -12,10 +12,10 @@ char deviceid[37]; // v1 use 12 char, v2 use 36 char
   byte mac[6] = {0x00, 0x01, 0x02, 0x03, 0x04, 0x08}; // you can set it as you want
   
 #elif defined USE_WIFI
-  byte mac[6]; // use esp8266 itself mac address
+  byte mac[6];            // use esp8266 itself mac address
   char wifissid[50] = ""; //store Wi-Fi SSID , it can come from user keyying in or read from EEPROM
   char wifipass[50] = ""; //store Wi-Fi password
-  uint8_t wifimode = 1; //1:AP , 0: STA, 
+  uint8_t wifimode = 1;   //1:AP , 0: STA, 
   WiFiClient espClient;
   ESP8266WebServer server ( 80 );
 
@@ -52,6 +52,7 @@ void SetDeviceID(void){
 #endif
 
   DID.toCharArray(deviceid, DID.length()+1);
+  Serial.println("[SerDeviceID]"+String(deviceid));
 }
 void CheckNetworkStatus(void){
 #ifdef USE_WIFI
@@ -98,6 +99,7 @@ String prepare_http_package(const char* HTTP_Type, const char* feature, const ch
   if(String(HTTP_Type) != "POST"){
     package += "password-key: "+httppw+"\n";
   }
+  Serial.println(package);
 #endif
   package += "Content-Type: application/json\n";
   if (payload != "") {
@@ -314,7 +316,7 @@ int connect_to_wifi(void){
 #endif
 
   if (WiFi.status() == WL_CONNECTED) {
-    Serial.println("[WiFi]Connected");
+    Serial.println("[WiFi]Connect to "+String(wifissid)+" successful!");
     wifimode = 0 ;
     return 1;
   }

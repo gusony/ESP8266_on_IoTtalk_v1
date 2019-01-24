@@ -48,6 +48,7 @@ int Register(void){ // retrun httpcod
   result.HTTPStatusCode = 0;
   result.payload = (char*)malloc(HTTP_RESPONSE_PAYLOAD_SIZE);
   memset(result.payload, 0, HTTP_RESPONSE_PAYLOAD_SIZE);
+  Serial.println("[Register]"+getProfile());
   POST(&result, getProfile().c_str());
 
   while ( result.HTTPStatusCode != 200){
