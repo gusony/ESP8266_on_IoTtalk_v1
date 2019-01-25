@@ -19,6 +19,11 @@
 |GPIO0|HISH(LOW when upload)|
 |Reset|HIGH(LOW when used)|
 
+|ENC28J60|Volt|
+|:-----:|:-----:|
+|Vcc|3.1V~3.6V(3.3V typical)|
+|GND|GND|
+
 :heavy_exclamation_mark::heavy_exclamation_mark::heavy_exclamation_mark:
 ESP8266 use 3.3V 
 BUT! you can use a voltage regulator([ASM1117-3.3](http://www.advanced-monolithic.com/pdf/ds1117.pdf)).
