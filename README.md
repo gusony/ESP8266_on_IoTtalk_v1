@@ -9,15 +9,15 @@
 
 
 ## Pinout
-|ESP12F |UART to USB|
+|ESP12F |volt|
 |:-----:|:-----:|
 |Vcc|3.3v|
 |GND|GND|
 |CH_PD|3.3V|
 |TX|RX|
 |RX|TX|
-|GPIO|LOW(when upload)|
-
+|GPIO0|HISH(LOW when upload)|
+|Reset|HIGH(LOW when used)|
 
 ## Arduino IDE setting
 Type|Parameter
