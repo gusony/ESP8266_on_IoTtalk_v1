@@ -6,15 +6,20 @@ extern String httppw;
 #endif
 
 #ifdef V1
-StaticJsonBuffer<256> JB_TS;//JsonBuffer Timestamp
-JsonObject& JO_TS = JB_TS.createObject();
+// CAN'T UNCOMMENT
+//StaticJsonBuffer<256> JB_TS;
+//JsonObject& JO_TS = JB_TS.createObject();
+String TS[DF_NUM]; 
+// should not use 'global' jsonobject to store or write data, the details are on https://arduinojson.org/v5/faq/why-shouldnt-i-use-a-global-jsonbuffer/ 
+// google search : "Why shouldn't I use a global JsonBuffer?" 
+// and see the official example :  JsonConfigFile.ino
 #endif
 
 
 void init_ODFtimestamp(void){
-  const char* df_list[] = DF_LIST;
-  for(int i = 0; i < (sizeof(df_list)/4);i++)
-    JO_TS[df_list[i]]="";
+  //const char* df_list[] = DF_LIST;
+  for(int i = 0; i <= DF_NUM; i++)
+    TS[i]="";
 }
 String  getProfile(void){
   const char* df_list[] = DF_LIST;
@@ -93,6 +98,8 @@ int push(char *df_name, String value){  //return httpcode
   return result.HTTPStatusCode;
 }
 String pull(char *df_name){
+  String old_time, new_time;
+  String data;
   httpresp result;
   result.HTTPStatusCode = 0;
   result.payload = (char*)malloc(HTTP_RESPONSE_PAYLOAD_SIZE);
@@ -107,19 +114,22 @@ String pull(char *df_name){
   else {
     continue_error_quota = 5;
     StaticJsonBuffer<HTTP_RESPONSE_PAYLOAD_SIZE> JB_resp;
-    JsonObject& root = JB_resp.parseObject(String(result.payload));
-    if( root["samples"][0][0].as<String>() !=  JO_TS[df_name].as<String>()) {
-      JO_TS[df_name] = root["samples"][0][0].as<String>();
-      String last_data = root["samples"][0][1][0].as<String>();
+    JsonObject& JO_resp = JB_resp.parseObject(String(result.payload));
+    
+    int index = get_DF_index(String(df_name));
+    
+    if( TS[index] != JO_resp["samples"][0][0].as<String>() ){
+      TS[index]    = JO_resp["samples"][0][0].as<String>(); //update timestamp
+      String last_data = JO_resp["samples"][0][1][0].as<String>();
 #ifdef debug_pull
       Serial.println("[PULL]"+String(df_name)+":"+last_data);
 #endif
       if(result.payload != NULL)
         free(result.payload);
-      return root["samples"][0][1][0].as<String>();
+      return last_data;
     }
   }
   if(result.payload != NULL)
     free(result.payload);
-  return "___NULL_DATA___";
+  return "___NULL_DATA___"; // if HTTP code !=200 or no new data
 }

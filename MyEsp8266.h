@@ -7,10 +7,11 @@
   /* define what you need */
   //#define USE_ETHERNET
   #define USE_WIFI
-  #define USE_SSL
+  //#define USE_SSL
   #define V1
   //#define V2
   #define DF_LIST {"ESP12F_IDF", "ESP12F_ODF"}
+  #define DF_NUM 2  
   #define DM_NAME  "ESP12F" // Device Module name
 
   #define MAX_HTTP_PACKAGE_SIZE 512
@@ -18,12 +19,12 @@
 
   #define debug_mode
   #ifdef debug_mode
-    #define debug_SEND
+//    #define debug_SEND
 //    #define debug_mode_GET
 //    #define debug_mode_PUT
-    #define debug_POST
+//    #define debug_POST
 //    #define debug_mode_getprofile
-    #define debug_mode_register
+//    #define debug_mode_register
 //    #define debug_checknetstatus
 //    #define debug_getProfile
 //    #define debug_pull
@@ -94,6 +95,7 @@ void SetDeviceID(void);
 void CheckNetworkStatus(void);
 void Init(void);
 
+int get_DF_index(String target);
 
 //#ifdef USE_ETHERNET
   void connect_to_ethernet(void);

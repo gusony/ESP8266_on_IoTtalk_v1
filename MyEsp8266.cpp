@@ -21,7 +21,7 @@ char deviceid[37]; // v1 use 12 char, v2 use 36 char
     WiFiClientSecure TCPclient;
     const char* fingerprint = "BF D3 C5 AE D2 75 9F 12 C4 2A 7A 1B 18 F4 9F F5 70 24 22 32";
     String httppw = "";
-  #else
+  #else 
     HTTPClient httpclient;
   #endif
 #endif
@@ -81,6 +81,17 @@ void Init(void){
   
 }
 
+#ifdef V1
+int get_DF_index(String target){
+  String df_list[DF_NUM] = DF_LIST;
+  for(int i = 0; i <= DF_NUM; i++)
+    if(df_list[i] == target)
+      return i;
+  return -1;
+}
+#endif
+
+
 //about http package
 String prepare_http_package(const char* HTTP_Type, const char* feature, const char* payload){
   String package = String(HTTP_Type) + " /" + String(deviceid) ;  //sum of http string that will be send out
@@ -102,6 +113,7 @@ String prepare_http_package(const char* HTTP_Type, const char* feature, const ch
   }
   return(package);
 }
+#if defined(USE_ETHERNET) || defined(USE_SSL)
 void Send_HTTPS(httpresp *result, const char* HTTP_Type, const char* feature, const char* payload) {
 #ifdef debug_SEND
   Serial.println("[Send]Start");
@@ -115,13 +127,12 @@ void Send_HTTPS(httpresp *result, const char* HTTP_Type, const char* feature, co
   memset(http_resp_package, 0, MAX_HTTP_PACKAGE_SIZE);
 
   if(!TCPclient.connected()){
-    Serial.println("[SEND]TCP isn't under connected");
-    Serial.println("[SEND]ServerIP="+String(ServerIP)+","+String(ServerPort));
-    
     if(!TCPclient.connect(ServerIP, ServerPort)){
       Serial.println("[Send]Tcp Connect fail");
       tcp_connect_error_times--;
       if(tcp_connect_error_times<=0){
+        //tcp connection error too much times
+        //check out the wifi/ethernet connection
 #if defined(USE_ETHERNET)
         connect_to_ethernet();
 #elif defined(USE_SSL)
@@ -130,13 +141,10 @@ void Send_HTTPS(httpresp *result, const char* HTTP_Type, const char* feature, co
         tcp_connect_error_times = 5 ;
       }
       result->HTTPStatusCode = -1;
-      if(http_resp_package != NULL)
-        free(http_resp_package);
       TCPclient.flush();
       TCPclient.stop();
       return;
     }
-    
   }
   
   TCPclient.println(prepare_http_package(HTTP_Type, feature, payload));
@@ -147,6 +155,7 @@ void Send_HTTPS(httpresp *result, const char* HTTP_Type, const char* feature, co
     package_size = TCPclient.available();
     if(package_size > 0){
       TCPclient.read((uint8_t*)http_resp_package, package_size);
+      
       //get http state code
       string_indexof = String(http_resp_package).indexOf("HTTP/");
       if(string_indexof >= 0)
@@ -167,18 +176,21 @@ void Send_HTTPS(httpresp *result, const char* HTTP_Type, const char* feature, co
           temp.toCharArray(result->payload, HTTP_RESPONSE_PAYLOAD_SIZE);
         }
 #ifdef debug_SEND
-        Serial.println("[Send]result->payload:"+String(result->payload));
+        Serial.println("[Send]result->payload:\n----------\n"+String(result->payload)+"\n----------");
 #endif
       }
-      if(TCPclient.available() <=0 )
+      if(TCPclient.available() <=0 ) // read finish --> exit
         break;
     }
   }
-  if(http_resp_package != NULL)
-    free(http_resp_package);
   TCPclient.flush();
   TCPclient.stop();
+  
+  if(http_resp_package != NULL)
+    free(http_resp_package);
+  
 }
+#endif
 void GET(httpresp *result, const char* df_name ) {
 #ifdef debug_mode_GET
   Serial.println("[GET]Start");
