@@ -5,13 +5,13 @@
   #define all_header
 
   /* define what you need */
-  //#define USE_ETHERNET
-  #define USE_WIFI
+  #define USE_ETHERNET
+  //# define USE_WIFI
   //#define USE_SSL
   #define V1
   //#define V2
-  #define DF_LIST {"ESP12F_IDF", "ESP12F_ODF"}
-  #define DF_NUM 2  
+  #define DF_LIST {"ESP12F_IDF", "ESP12F_ODF","ESP12F_testlatency"}
+  #define DF_NUM 3   
   #define DM_NAME  "ESP12F" // Device Module name
 
   #define MAX_HTTP_PACKAGE_SIZE 512
@@ -56,7 +56,7 @@
     #ifdef USE_SSL
       #define DEFAULT_SERVER_IP "test.iottalk.tw"
     #else
-      #define DEFAULT_SERVER_IP "140.113.215.7"
+      #define DEFAULT_SERVER_IP "140.113.199.222"
     #endif
   #elif defined V2
     #define DEFAULT_SERVER_IP "140.113.199.198"

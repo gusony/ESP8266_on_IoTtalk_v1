@@ -59,19 +59,21 @@ void CheckNetworkStatus(void){
   Serial.print("[Ethernet]localIP:");
   Serial.println(Ethernet.localIP());
   #endif
-  if(String(Ethernet.localIP()).index("0.0.0.0") >= 0)
+  if(String(Ethernet.localIP()).indexOf("0.0.0.0") >= 0)
     connect_to_ethernet();
 #endif
 }
 void Init(void){
   delay(10);
   Serial.begin(115200);
+  Serial.println("[Init] Serial begin successful!");
   //randomSeed(analogRead(0));
   SetDeviceID();
   
 #ifdef USE_WIFI
   EEPROM.begin(512);
-  pinMode(CLEAREEPROM, INPUT_PULLUP); 
+  pinMode(CLEAREEPROM, INPUT_PULLUP);
+  //clr_eeprom(1);
   WIFI_init();
 #elif defined USE_ETHERNET
   connect_to_ethernet();
@@ -348,7 +350,7 @@ void clr_eeprom(int force){ //clear eeprom (and wifi disconnect?)
   if (!force) {
     delay(3000);
   }
-  if ( (digitalRead(CLEAREEPROM) == LOW) || (force == 1) ) {
+  if ( (force == 1) || (digitalRead(CLEAREEPROM) == LOW) ) {
     for (int addr = 0; addr < 512; addr++) EEPROM.write(addr, 0); // clear eeprom
     EEPROM.commit();
     Serial.println("Clear EEPROM.");
