@@ -1,31 +1,32 @@
 #include "csmapi.h"
 
-long cycleTimestamp;
+//long cycleTimestamp;
 extern int continue_error_quota;
+#define TEST_DATA_NUM 1000
+#define TEST_DATA_INTERVAL 1000
 
 
 void test_v1_latency(){
   int i = 0;
   Serial.println("test start");
   
-  for (i = 0; i<1000; i){
-    if (millis() - cycleTimestamp > 200) { //每一秒push 一次資料
-      long start_time = millis();
-      String push_data = String(random(100));
-      push("ESP12F_IDF", push_data); //15~17 ms
-      delay(30);
-      while(millis() - start_time<200){
-        String Pull_result = pull("ESP12F_ODF");//18ms
-        if(Pull_result != "___NULL_DATA___" && Pull_result == push_data && millis() - start_time < 200){
-          Serial.println(millis() - start_time - 30);
-          i++;
-          break;
-        }
+  for (i = 0; i<TEST_DATA_NUM; i){
+    
+    String push_data = String(random(100));
+    push("ESP12F_IDF", push_data); //15~17 ms
+    long start_time = millis();
+    while(millis() - start_time<TEST_DATA_INTERVAL){
+      String Pull_result = pull("ESP12F_ODF");//18ms
+      
+      if(Pull_result != "___NULL_DATA___" && Pull_result == push_data && millis() - start_time < TEST_DATA_INTERVAL){
+        Serial.println((String)(millis() - start_time) );
+        i++;
+        break;
       }
-      cycleTimestamp = millis();
-      delay(10);
     }
+    delay(100); // take a break
   }
+  
   
   Serial.println("test finish");
 }
@@ -34,7 +35,7 @@ void setup(){
   Init();
   Register();
   init_ODFtimestamp();
-  cycleTimestamp = millis();
+  //cycleTimestamp = millis();
   //test_v1_latency();
 }
 void loop(){

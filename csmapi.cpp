@@ -17,7 +17,6 @@ String TS[DF_NUM];
 
 
 void init_ODFtimestamp(void){
-  //const char* df_list[] = DF_LIST;
   for(int i = 0; i <= DF_NUM; i++)
     TS[i]="";
 }
@@ -32,7 +31,7 @@ String  getProfile(void){
   JO_profile["dm_name"] = DM_NAME;
   JO_profile["is_sim"] = false;
   JsonArray& JO_df_list = JO_profile.createNestedArray("df_list");
-  for(int i = 0; i < sizeof(df_list)/4; i++)
+  for(int i = 0; i < sizeof(df_list)/sizeof(char*); i++)// ArduinoMega point size = 2 
     JO_df_list.add( String(df_list[i]) );
 
   JO_root.printTo(result);

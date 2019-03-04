@@ -7,7 +7,7 @@ char deviceid[37]; // v1 use 12 char, v2 use 36 char
 //according to 'MyEsp8266.h' , choose the way you want to use to connect Internet 
 #ifdef USE_ETHERNET
   EthernetClient TCPclient;
-  byte mac[6] = {0x00, 0x01, 0x02, 0x03, 0x04, 0x08}; // you can set it as you want
+  byte mac[6] = {0x00, 0x01, 0x02, 0x03, 0x04, 0x05}; // you can set it as you want
   
 #elif defined USE_WIFI
   byte mac[6];            // use esp8266 itself mac address
@@ -66,9 +66,11 @@ void CheckNetworkStatus(void){
 void Init(void){
   delay(10);
   Serial.begin(115200);
+  Serial.println();
   Serial.println("[Init] Serial begin successful!");
   //randomSeed(analogRead(0));
   SetDeviceID();
+  
   
 #ifdef USE_WIFI
   EEPROM.begin(512);
@@ -79,6 +81,7 @@ void Init(void){
   connect_to_ethernet();
   String(DEFAULT_SERVER_IP).toCharArray(ServerIP, 50);
 #endif
+  Serial.println("[ServerIP]"+(String)ServerIP);
 
   
 }
@@ -115,6 +118,7 @@ String prepare_http_package(const char* HTTP_Type, const char* feature, const ch
   }
   return(package);
 }
+
 #if defined(USE_ETHERNET) || defined(USE_SSL)
 void Send_HTTPS(httpresp *result, const char* HTTP_Type, const char* feature, const char* payload) {
 #ifdef debug_SEND
@@ -127,8 +131,17 @@ void Send_HTTPS(httpresp *result, const char* HTTP_Type, const char* feature, co
   long start_time = 0;
   char * http_resp_package = (char*)malloc(MAX_HTTP_PACKAGE_SIZE);
   memset(http_resp_package, 0, MAX_HTTP_PACKAGE_SIZE);
-
+  long time5=0;
+  /*
+   * TCPclient.connect retrun
+   * SUCCESS 1
+   * TIMED_OUT -1
+   * INVALID_SERVER -2
+   * TRUNCATED -3
+   * INVALID_RESPONSE -4
+   */
   if(!TCPclient.connected()){
+    time5 = millis();
     if(!TCPclient.connect(ServerIP, ServerPort)){
       Serial.println("[Send]Tcp Connect fail");
       tcp_connect_error_times--;
@@ -147,7 +160,9 @@ void Send_HTTPS(httpresp *result, const char* HTTP_Type, const char* feature, co
       TCPclient.stop();
       return;
     }
+    Serial.println("time5:"+(String)(millis()-time5));
   }
+  
   
   TCPclient.println(prepare_http_package(HTTP_Type, feature, payload));
 
@@ -243,18 +258,18 @@ void POST(httpresp *result, const char* payload) {
 
 #ifdef USE_ETHERNET
 void connect_to_ethernet(void) {
-  IPAddress staticip(192,168,1,15);
   while (1) {
-    Serial.println(Ethernet.localIP());
     Serial.print("[Ethernet]begin");
-    if ((Ethernet.localIP() != IPAddress(0,0,0,0)) || (Ethernet.begin(mac))) {
-    //if(Ethernet.begin(mac) ){
+    int state_code = Ethernet.begin(mac);
+    
+    if (Ethernet.localIP() != IPAddress(0,0,0,0) || state_code!= 0) {
       Serial.println(" successful");
       break;
     }
-    else
-      Serial.println(" fail");
-    delay(1000);
+    else{
+      Serial.println(" fail, "+(String)state_code);
+    }
+    delay(500);
   }
   Serial.print("[Ethernet]localIP:");
   Serial.println(Ethernet.localIP());

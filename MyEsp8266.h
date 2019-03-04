@@ -56,7 +56,7 @@
     #ifdef USE_SSL
       #define DEFAULT_SERVER_IP "test.iottalk.tw"
     #else
-      #define DEFAULT_SERVER_IP "140.113.199.222"
+      #define DEFAULT_SERVER_IP "140.113.215.7"
     #endif
   #elif defined V2
     #define DEFAULT_SERVER_IP "140.113.199.198"
