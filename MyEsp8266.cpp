@@ -140,10 +140,12 @@ void Send_HTTPS(httpresp *result, const char* HTTP_Type, const char* feature, co
    * TRUNCATED -3
    * INVALID_RESPONSE -4
    */
+  Ethernet.maintain();
   if(!TCPclient.connected()){
     time5 = millis();
-    if(!TCPclient.connect(ServerIP, ServerPort)){
-      Serial.println("[Send]Tcp Connect fail");
+    int state_code = TCPclient.connect(ServerIP, ServerPort);
+    if(state_code!=1){
+      Serial.println("[Send]Tcp Connect fail,"+(String)state_code);
       tcp_connect_error_times--;
       if(tcp_connect_error_times<=0){
         //tcp connection error too much times
@@ -162,8 +164,11 @@ void Send_HTTPS(httpresp *result, const char* HTTP_Type, const char* feature, co
     }
     Serial.println("time5:"+(String)(millis()-time5));
   }
+  else{
+    Serial.println("TCP has connected");
+  }
   
-  
+  // send http package using TCP connection
   TCPclient.println(prepare_http_package(HTTP_Type, feature, payload));
 
   start_time = millis();
