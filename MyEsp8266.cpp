@@ -5,12 +5,11 @@ char ServerIP[50];
 char deviceid[37]; // v1 use 12 char, v2 use 36 char
 
 
-
 //according to 'MyEsp8266.h' , choose the way you want to use to connect Internet 
 #ifdef USE_ETHERNET
   EthernetClient TCPclient;
   byte mac[6] = {0x00, 0x01, 0x02, 0x03, 0x04, 0x05}; // you can set it as you want
-  long tcp_connect_time = 0;
+  unsigned long tcp_connect_time = 0;
   
 #elif defined USE_WIFI
   byte mac[6];            // use esp8266 itself mac address
@@ -177,18 +176,17 @@ int decodehttp(httpresp *result, String package){ //return payload_length , -1 i
   }
   return GetHTTPPayload_ERROR;
 }
-
-int Eth_TCP_Connect(void){
-  long timer = 0;
+int Eth_TCP_Connect(void){// connected will return 0 or 1 , fail or success
+  unsigned long timer = 0;
   int error_code = 777;
-  
-  if( TCPclient.connected() != 1){ // connected will return 0 or 1 , fail or success
-    Serial.print("[Eth_TCP] Build TCP Connection ");
+  tcp_connect_time = 0;
+  if( TCPclient.connected() != 1){
+    Serial.println("[Eth_TCP]TCP connectded");
     timer = millis();
     switch(error_code = TCPclient.connect(ServerIP, ServerPort)){
       case 1 : //Success
-        Serial.println("successful");
         tcp_connect_time = millis()-timer;
+        Serial.println("[E_TCP]"+(String)tcp_connect_time);
         return 1;
 
       case  0: //FAIL
@@ -196,7 +194,6 @@ int Eth_TCP_Connect(void){
       case -2: //INVALID_SERVER
       case -3: //TRUNCATED
       case -4: //INVALID_RESPONSE
-        Serial.println("fail");
         Serial.println("[Eth_TCP]Tcp Connect Error code ,"+(String)error_code);
         tcp_connect_error_times--;
         if(tcp_connect_error_times <= 0){ // tcp connection error too much times,check out the wifi/ethernet connection
@@ -213,40 +210,39 @@ int Eth_TCP_Connect(void){
         
       default:
         Serial.println("fail");
-        Serial.println("[Eth_TCP] unknow error,"+(String)error_code);
+        Serial.println("[Eth_TCP] Unknow error,"+(String)error_code);
         return 0;
     }
   }
-  else{
+#ifdef debug_ETH_TCP
+  else
     Serial.println("[Eth_TCP] TCP Connection has builded");
-  }
+#endif
   return 1;
   
 }
-
 void Send_HTTPS(httpresp *result, const char* HTTP_Type, const char* feature, const char* payload) {
 #ifdef debug_SEND
-  Serial.println("[Send]Start");
+  Serial.println("[Send]Start, "+(String)HTTP_Type);
 #endif
   String temp = "";
   const int resp_timeout = 100;
   int package_size = 0;
   int payload_length = -1;
   int string_indexof;
-  long start_time = 0;
+  unsigned long start_time = 0;
   int state_code=0;
   char * http_resp_package = (char*)malloc(MAX_HTTP_PACKAGE_SIZE);
   memset(http_resp_package, 0, MAX_HTTP_PACKAGE_SIZE);
-  
+
+  //check tcp connection, build successful->1, fail->0
   if(Eth_TCP_Connect()!=1){
       result->HTTPStatusCode = TCP_CONNECT_ERROR;
       return;
   }
   
   // send http package using TCP connection
-  Serial.print("[SEND]tcp print");
   TCPclient.println(prepare_http_package(HTTP_Type, feature, payload));
-  Serial.println(" finish");
   
   start_time = millis();
   while (millis() - start_time < resp_timeout) {
@@ -271,7 +267,10 @@ void Send_HTTPS(httpresp *result, const char* HTTP_Type, const char* feature, co
     }
   }
   TCPclient.flush();
-  TCPclient.stop();
+  if(HTTP_Type == "POST" || HTTP_Type == "GET"){
+    TCPclient.stop();
+  }
+  
   
   if(http_resp_package != NULL)
     free(http_resp_package);
@@ -392,7 +391,7 @@ int connect_to_wifi(void){
   Serial.print("[WiFi]Connecting");
 
 #ifndef FORCE_CONNECT
-  long connecttimeout = millis();
+  unsigned long connecttimeout = millis();
   WiFi.softAPdisconnect(true);
   WiFi.begin(wifissid, wifipass);
   while (WiFi.status() != WL_CONNECTED && (millis() - connecttimeout < 10000) ) {
@@ -401,7 +400,7 @@ int connect_to_wifi(void){
   }
   Serial.println();
 #else
-  long connecttimeout = 0;
+  unsigned long connecttimeout = 0;
   while (WiFi.status() != WL_CONNECTED  ) {
     if( millis() - connecttimeout > 10000){
       WiFi.begin(wifiSSID, wifiPASS);

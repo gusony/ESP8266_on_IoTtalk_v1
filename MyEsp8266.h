@@ -20,7 +20,7 @@
   #define debug_mode
   #ifdef debug_mode
 //    #define debug_prepare_http_package
-    #define debug_SEND
+//    #define debug_SEND
 //    #define debug_GET
 //    #define debug_mode_PUT
 //    #define debug_POST
@@ -28,8 +28,9 @@
 //    #define debug_register
 //    #define debug_checknetstatus
 //    #define debug_getProfile
-    #define debug_pull
+//    #define debug_pull
 //    #define debug_push
+//    #define debug_ETH_TCP
   #endif
 
 

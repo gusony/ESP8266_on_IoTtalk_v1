@@ -24,7 +24,7 @@
 #ifdef USE_PM25
 String read_pm25(void){ //get pm2.5 data
   unsigned char pms5003[2];//store pms5003 data
-  long read_timeout;
+  unsigned long read_timeout;
   int i;
   pms.begin(pms_baudrate);
   read_timeout = millis();
@@ -72,7 +72,7 @@ void OLED_print(String mes){
 
 #ifdef USE_GPS
 String get_GPS( String value){
-  long timeout = millis();
+  unsigned long timeout = millis();
   char c;
   String result;
   bool find_flag = 0;

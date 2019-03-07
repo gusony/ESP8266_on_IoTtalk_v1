@@ -1,12 +1,11 @@
 #include "csmapi.h"
 
-//long cycleTimestamp;
 extern int continue_error_quota;
 extern long tcp_connect_time;
+extern EthernetClient TCPclient;
 #define TEST_DATA_NUM 1000
 #define TEST_DATA_INTERVAL 1000
-unsigned long timestamp=0; 
-
+unsigned long timestamp=0;
 
 void test_v1_latency(){
   int i = 0;
@@ -16,12 +15,16 @@ void test_v1_latency(){
     Ethernet.maintain();
     String push_data = String(random(100));
     push("ESP12F_IDF", push_data); //15~17 ms
-    long start_time = millis();
+    Serial.println("[Test]push");
+    unsigned long start_time = millis();
+    //delay(30);
     while(millis() - start_time<TEST_DATA_INTERVAL){
+      Serial.println("[Test]Pull");
       String Pull_result = pull("ESP12F_ODF");//18ms
       
+      
       if(Pull_result != "___NULL_DATA___" && Pull_result == push_data && millis() - start_time < TEST_DATA_INTERVAL){
-        Serial.println((String)(millis() - start_time - tcp_connect_time) );
+        Serial.println("[Test]"+(String)(millis() - start_time)+","+(String)(millis() - start_time - tcp_connect_time) );
         i++;
         break;
       }
@@ -37,7 +40,7 @@ void setup(){
   Init(); 
   Register();
   init_ODFtimestamp();
-  //cycleTimestamp = millis();
+  test_v1_latency();
   timestamp = millis();
 }
 void loop(){
@@ -47,7 +50,6 @@ void loop(){
 #endif
 
 #ifdef USE_ETHERNET
-  Serial.println("[main]maintain");
   Ethernet.maintain();
 #endif
 
@@ -57,28 +59,11 @@ void loop(){
     continue_error_quota = 5;
     Register();
   }
-
-
   
   if( pull("ESP12F_testlatency") == "1" && millis - timestamp >=1000){
     test_v1_latency();
     timestamp = millis();
   }
-
-//  if (millis() - cycleTimestamp > 300) { //每一秒push 一次資料
-//    long start_time = millis();
-//    push("ESP12F_IDF", String(random(100))); //15~17 ms
-//    
-//    String Pull_result = pull("ESP12F_ODF");//18ms
-//    
-//    if(Pull_result != "___NULL_DATA___"){
-//      Serial.println(millis() - start_time);
-//    }
-//    cycleTimestamp = millis();
-//    delay(10);
-//  }
-
-  
   
 
 }
