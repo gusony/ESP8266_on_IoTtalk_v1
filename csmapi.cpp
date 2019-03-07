@@ -37,15 +37,16 @@ String  getProfile(void){
   JO_root.printTo(result);
   JB_root.clear();
 
-#ifdef debug_mode_getprofile
+#ifdef debug_getprofile
   Serial.println("[getProfile]"+result);
 #endif
   return result;
 }
 int Register(void){ // retrun httpcod
-#ifdef debug_mode_register
+#ifdef debug_register
   Serial.println("[Register]start");
 #endif
+  
   CheckNetworkStatus();
 
   httpresp result;
@@ -62,6 +63,7 @@ int Register(void){ // retrun httpcod
     memset(result.payload, 0, HTTP_RESPONSE_PAYLOAD_SIZE);
     POST(&result, getProfile().c_str());
   }
+  Serial.println("[Register] Successful");
 
 #ifdef USE_SSL
   StaticJsonBuffer<512> JB_root;
@@ -86,7 +88,7 @@ int push(char *df_name, String value){  //return httpcode
   PUT(&result, value.c_str(), df_name);
 
   if (result.HTTPStatusCode != 200) {
-    Serial.println("[PUSH] \""+String(df_name)+"\":" +value+"..." + String(result.HTTPStatusCode) );
+    Serial.println("[PUSH] \""+String(df_name)+"\":" +value+", error:" + String(result.HTTPStatusCode) );
     continue_error_quota--;
   }
   else
@@ -104,10 +106,10 @@ String pull(char *df_name){
   result.payload = (char*)malloc(HTTP_RESPONSE_PAYLOAD_SIZE);
   memset(result.payload, 0, HTTP_RESPONSE_PAYLOAD_SIZE);
   GET(&result, df_name);
-
+    
 
   if (result.HTTPStatusCode != 200) {
-    Serial.println("[PULL]" + String(df_name) + "," + String(result.HTTPStatusCode) +"\n"+String(result.payload));
+    Serial.println("[PULL]ERROR, " + String(df_name) + "," + String(result.HTTPStatusCode) +"\n"+String(result.payload));
     continue_error_quota--;
   }
   else {

@@ -19,17 +19,29 @@
 
   #define debug_mode
   #ifdef debug_mode
+//    #define debug_prepare_http_package
     #define debug_SEND
-    #define debug_mode_GET
-    #define debug_mode_PUT
-    #define debug_POST
-    #define debug_mode_getprofile
-    #define debug_mode_register
+//    #define debug_GET
+//    #define debug_mode_PUT
+//    #define debug_POST
+//    #define debug_getprofile
+//    #define debug_register
 //    #define debug_checknetstatus
-    #define debug_getProfile
-//    #define debug_pull
+//    #define debug_getProfile
+    #define debug_pull
 //    #define debug_push
   #endif
+
+
+// Error code
+#define TCP_CONNECT_ERROR 800
+#define TCP_RECV_FBACK_BUT_NOT_HTTP 801
+#define GetHTTPPayload_ERROR -802
+#define GetHTTPCodeERROR -803
+
+
+
+
 
   /* include general/common library */
   #include <ArduinoJson.h>        // Json library
@@ -100,6 +112,7 @@ int get_DF_index(String target);
 //#ifdef USE_ETHERNET
   void connect_to_ethernet(void);
   String prepare_http_package(const char* HTTP_Type, const char* feature, const char* payload);
+  int Eth_TCP_Connect(void);
   void Send_HTTPS(httpresp *result, const char* HTTP_Type, const char* feature, const char* payload);
   void GET(httpresp *result, const char* feature);
   void PUT(httpresp *result, const char* value, const char* feature );

@@ -137,8 +137,9 @@ String prepare_http_package(const char* HTTP_Type, const char* feature, const ch
   
   if (payload != "") {
     package += "Content-Length: " + String(String(payload).length()) + "\n\n";
-    package += String(payload) + "\n\n\n";
+    package += String(payload) + "\n\n\r\n";
   }
+  
 #ifdef debug_prepare_http_package
   Serial.println("[prep_http]\n-----\n"+package+"\n-----\n"); 
 #endif
@@ -146,17 +147,37 @@ String prepare_http_package(const char* HTTP_Type, const char* feature, const ch
 }
 
 #if defined(USE_ETHERNET) || defined(USE_SSL)
-int gethttpcode(String package){
-  int http_indexof = package.indexOf("HTTP/");
+int decodehttp(httpresp *result, String package){ //return payload_length , -1 is error
+  int index = 0;
   int httpcode;
-  
-  if(http_indexof >= 0)
-    httpcode = ((uint8_t)package[9] - 48) * 100 + ((uint8_t)package[10] - 48) * 10 + (uint8_t)package[11] - 48;
-  else
-    httpcode = TCP_RECV_FBACK_BUT_NOT_HTTP;
+  String temp = "";
 
-  return httpcode;
+  index =  package.indexOf("HTTP/");
+  if(index < 0){ // not found HTTP/
+    result->HTTPStatusCode = GetHTTPCodeERROR;
+    return GetHTTPCodeERROR;
+  }
+  result->HTTPStatusCode = ((uint8_t)package[9] - 48) * 100 + ((uint8_t)package[10] - 48) * 10 + (uint8_t)package[11] - 48;
+
+  index = package.indexOf("{");
+  if(index >= 0){
+    temp = package.substring(index);
+
+    if(temp.length() < HTTP_RESPONSE_PAYLOAD_SIZE){
+      temp.toCharArray(result->payload, temp.length());
+      return temp.length();
+    }
+    else{
+      Serial.println("[GetHTTPPayload]HTTP_RESPONSE_PAYLOAD_SIZE not enough");
+      Serial.println("[GetHTTPPayload]temp:\n"+temp);
+      temp.toCharArray(result->payload, HTTP_RESPONSE_PAYLOAD_SIZE);
+      return HTTP_RESPONSE_PAYLOAD_SIZE;
+    }
+    return GetHTTPPayload_ERROR;
+  }
+  return GetHTTPPayload_ERROR;
 }
+
 int Eth_TCP_Connect(void){
   long timer = 0;
   int error_code = 777;
@@ -210,6 +231,7 @@ void Send_HTTPS(httpresp *result, const char* HTTP_Type, const char* feature, co
   String temp = "";
   const int resp_timeout = 100;
   int package_size = 0;
+  int payload_length = -1;
   int string_indexof;
   long start_time = 0;
   int state_code=0;
@@ -222,58 +244,37 @@ void Send_HTTPS(httpresp *result, const char* HTTP_Type, const char* feature, co
   }
   
   // send http package using TCP connection
-  Serial.println("[SEND]tcp print");
+  Serial.print("[SEND]tcp print");
   TCPclient.println(prepare_http_package(HTTP_Type, feature, payload));
-  Serial.println("[SEND]tcp print finish");
+  Serial.println(" finish");
   
   start_time = millis();
   while (millis() - start_time < resp_timeout) {
     package_size = TCPclient.available();
     if(package_size > 0){
       TCPclient.read((uint8_t*)http_resp_package, package_size);
-      
+
 #ifdef debug_SEND
-      Serial.println("[Send]result->payload:\n----------\n"+String(result->payload)+"\n----------");
+      //Serial.println("[Send]paaskage size:"+(String)package_size+"\n----------\n"+String(http_resp_package)+"\n----------");
 #endif
 
-      //get http state code
-      result->HTTPStatusCode = gethttpcode(String(http_resp_package));
-      /*
-      string_indexof = String(http_resp_package).indexOf("HTTP/");
-      if(string_indexof >= 0){
-        result->HTTPStatusCode = (http_resp_package[9] - 48) * 100 + (http_resp_package[10] - 48) * 10 + http_resp_package[11] - 48;
-      }
-      else{
-        result->HTTPStatusCode = TCP_RECV_FBACK_BUT_NOT_HTTP;
-      }
-      */
-      
+      decodehttp(result, http_resp_package);
       if(result->HTTPStatusCode != 200)
         Serial.println("-------------------\n"+String(http_resp_package)+"\n-------------------");
-
-      //get http response payload
-      if(string_indexof = String(http_resp_package).indexOf("{") >= 0){
-        temp = String(http_resp_package).substring(string_indexof);
-
-        if(temp.length() < HTTP_RESPONSE_PAYLOAD_SIZE)
-          temp.toCharArray(result->payload, temp.length());
-        else{
-          Serial.println("[Send]HTTP_RESPONSE_PAYLOAD_SIZE not enough");
-          Serial.println("[Send]temp:\n"+temp);
-          temp.toCharArray(result->payload, HTTP_RESPONSE_PAYLOAD_SIZE);
-        }
-
-      }
-      if(TCPclient.available() <=0 ) // read finish --> exit
+      
+      // 如果封包長度太長 一次讀不完 這樣while會持續 回傳的payload應該會有問題 可能只剩後半段
+      // feature work
+      if(TCPclient.available() <=0 ){ // read finish --> exit
+        
         break;
+      }
     }
   }
-  //TCPclient.flush();
-  //TCPclient.stop();
+  TCPclient.flush();
+  TCPclient.stop();
   
   if(http_resp_package != NULL)
     free(http_resp_package);
-  
 }
 #endif
 void GET(httpresp *result, const char* df_name ) {
@@ -294,15 +295,15 @@ void GET(httpresp *result, const char* df_name ) {
 void PUT(httpresp *result, const char* value, const char* df_name ) {
 #ifdef debug_mode_PUT
   Serial.println("[PUT]Start");
+  Serial.println("[PUT]"+(String)df_name+","+(String)value);
 #endif
+String data = "{\"data\":[" + String(value) + "]}";
 
 #if defined(USE_ETHERNET) || defined(USE_SSL)
-  String S_payload = "{\"data\":[" + String(value) + "]}";
-  Send_HTTPS(result, "PUT", df_name, S_payload.c_str());
+  Send_HTTPS(result, "PUT", df_name, data.c_str());
 #else
   httpclient.begin( "http://" + String(ServerIP) + ":"+String(ServerPort)+"/"+String(deviceid)+"/" + String(df_name));
   httpclient.addHeader("Content-Type", "application/json");
-  String data = "{\"data\":[" + String(value) + "]}";
   result->HTTPStatusCode = httpclient.PUT(data);
   httpclient.end();
 #endif
