@@ -86,19 +86,20 @@ int push(char *df_name, String value){  //return httpcode
 
   httpresp result;
   result.HTTPStatusCode = 0;
-  result.payload = (char*)malloc(HTTP_RESPONSE_PAYLOAD_SIZE);
-  memset(result.payload, 0, HTTP_RESPONSE_PAYLOAD_SIZE);
+  result.payload = (char*)malloc(sizeof(char*)*HTTP_RESPONSE_PAYLOAD_SIZE);
+  memset(result.payload, 0, sizeof(char*)*HTTP_RESPONSE_PAYLOAD_SIZE);
   PUT(&result, value.c_str(), df_name);
 
-  if (result.HTTPStatusCode != 200) {
+  if (result.HTTPStatusCode == 200)
+    continue_error_quota = 5;
+  else{
     Serial.println("[PUSH] \""+String(df_name)+"\":" +value+", error:" + String(result.HTTPStatusCode) );
     continue_error_quota--;
   }
-  else
-    continue_error_quota = 5;
 
   if(result.payload != NULL)
     free(result.payload);
+    
   return result.HTTPStatusCode;
 }
 String pull(char *df_name){
@@ -108,7 +109,7 @@ String pull(char *df_name){
   result.HTTPStatusCode = 0;
   result.payload = (char*)malloc(HTTP_RESPONSE_PAYLOAD_SIZE);
   memset(result.payload, 0, HTTP_RESPONSE_PAYLOAD_SIZE);
-  GET(&result, df_name);
+  GET(&result, df_name,0);
     
 
   if (result.HTTPStatusCode != 200) {
@@ -130,6 +131,7 @@ String pull(char *df_name){
 #endif
       if(result.payload != NULL)
         free(result.payload);
+      GET(&result, df_name,1);
       return last_data;
     }
   }

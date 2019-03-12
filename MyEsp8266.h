@@ -15,7 +15,7 @@
   #define DM_NAME  "ESP12F" // Device Module name
 
   #define MAX_HTTP_PACKAGE_SIZE 512
-  #define HTTP_RESPONSE_PAYLOAD_SIZE 256
+  #define HTTP_RESPONSE_PAYLOAD_SIZE 512
 
   #define debug_mode
   #ifdef debug_mode
@@ -35,10 +35,11 @@
 
 
 // Error code
-#define TCP_CONNECT_ERROR 800
+#define TCP_CONNECT_ERROR -800
 #define TCP_RECV_FBACK_BUT_NOT_HTTP 801
 #define GetHTTPPayload_ERROR -802
 #define GetHTTPCodeERROR -803
+#define NO_NEW_DATA -804
 
 
 
@@ -115,7 +116,7 @@ int get_DF_index(String target);
   String prepare_http_package(const char* HTTP_Type, const char* feature, const char* payload);
   int Eth_TCP_Connect(void);
   void Send_HTTPS(httpresp *result, const char* HTTP_Type, const char* feature, const char* payload);
-  void GET(httpresp *result, const char* feature);
+  void GET(httpresp *result, const char* feature ,bool close_TCP);
   void PUT(httpresp *result, const char* value, const char* feature );
   void POST(httpresp *result, const char* payload);
 //#endif
