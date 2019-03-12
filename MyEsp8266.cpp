@@ -9,7 +9,6 @@ char deviceid[37]; // v1 use 12 char, v2 use 36 char
 #ifdef USE_ETHERNET
   EthernetClient TCPclient;
   byte mac[6] = {0x00, 0x01, 0x02, 0x03, 0x04, 0x05}; // you can set it as you want
-  unsigned long tcp_connect_time = 0; // no use
   
 #elif defined USE_WIFI
   byte mac[6];            // use esp8266 itself mac address
@@ -181,12 +180,10 @@ int decodehttp(httpresp *result, String package){ //return payload_length , -1 i
   return GetHTTPPayload_ERROR;
 }
 int Eth_TCP_Connect(void){// connected will return 0 or 1 , fail or success
-  unsigned long timer = 0;
-  int error_code = 777;
-  tcp_connect_time = 0;
+  
+  int error_code = 0;
   if( TCPclient.connected() != 1){
     Serial.println("[Eth_TCP]TCP break");
-    timer = millis();
     Serial.println("[Eth_TCP] tcp connect to "+(String)ServerIP+", "+(String)ServerPort);
     switch(error_code = TCPclient.connect(ServerIP, ServerPort)){
       case 1 : //Success
@@ -226,45 +223,43 @@ void Send_HTTPS(httpresp *result, const char* HTTP_Type, const char* feature, co
 #ifdef debug_SEND
   Serial.println("[Send]Start, "+(String)HTTP_Type);
 #endif
+
   String temp = "";
   int send_pack_leng = 0;
-  
   const int resp_timeout = 1000;
   int package_size = 0;
   unsigned long start_time = 0;
   char * http_resp_package = (char*)malloc(MAX_HTTP_PACKAGE_SIZE);
+  memset(http_resp_package, 0, MAX_HTTP_PACKAGE_SIZE);
   
   //check tcp connection, build successful->1, fail->0
   if(Eth_TCP_Connect()!=1){
-      result->HTTPStatusCode = TCP_CONNECT_ERROR;
-      return;
+    result->HTTPStatusCode = TCP_CONNECT_ERROR;
+    return;
   }
   
   // send http package using TCP connection
   TCPclient.println(prepare_http_package(HTTP_Type, feature, payload));
   TCPclient.flush();
 
-
+  
   // receive response package
   start_time = millis();
   while (1) {
     package_size = TCPclient.available();
     if(package_size > 0){
-      memset(http_resp_package, 0, MAX_HTTP_PACKAGE_SIZE);
+      // read package from enc28j60's buffer , to ESP8266 memory
       TCPclient.read((uint8_t*)http_resp_package, package_size);
 
-#ifdef debug_SEND
-      Serial.println("[Send] size:"+(String)package_size);
-      Serial.println("----------\n"+String(http_resp_package)+"\n----------");
-      Serial.flush();
-#endif
-
+      // decode HTTP package
       decodehttp(result, (String)http_resp_package); // decode that response package as http format
+
+      //free memory
       if(http_resp_package != NULL)
         free(http_resp_package);
       
       if(result->HTTPStatusCode == 200)
-        break;
+        return;
       else
         Serial.println("[SEND]result->HTTPStatusCode != 200\n-------------------\n"+String(http_resp_package)+"\n-------------------");
       
@@ -273,14 +268,16 @@ void Send_HTTPS(httpresp *result, const char* HTTP_Type, const char* feature, co
       // 但是有可能 前面的封包就有錯 所以pull不到
       // feature work
       if(TCPclient.available() <=0 )// read finish --> exit
-        break;
+        return;
     }
     
     if(millis() - start_time >= resp_timeout){
       Serial.println("[SEND] wait http resp timeout");
-      break;
+      result->HTTPStatusCode = HTTP_ACK_TIMEOUT;
+      return;
     }
   }
+  
 }
 #endif
 void GET(httpresp *result, const char* df_name ,bool close_TCP) {
@@ -319,7 +316,7 @@ void POST(httpresp *result, const char* payload) {
   Serial.println("[POST]Start");
 #endif
 #if defined(USE_ETHERNET) || defined(USE_SSL)
-  TCPclient.stop();
+  //TCPclient.stop();
   Send_HTTPS(result, "POST", "", payload, 0);
 #else
   httpclient.begin("http://" + String(ServerIP) + ":"+String(ServerPort)+"/"+String(deviceid));

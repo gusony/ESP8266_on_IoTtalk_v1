@@ -1,7 +1,6 @@
 #include "csmapi.h"
 
 extern int continue_error_quota;
-extern long tcp_connect_time; // no use
 extern EthernetClient TCPclient;
 #define TEST_DATA_NUM 1000
 #define TEST_DATA_INTERVAL 1000
@@ -9,7 +8,7 @@ unsigned long timestamp=0;
 
 void test_v1_latency(){
   int i = 0;
-  unsigned long start_time = 0;
+  unsigned long start_time = 0; 
   String Pull_result = "";
   String push_data = "";
   Serial.println("test start");
@@ -18,14 +17,14 @@ void test_v1_latency(){
     
     push_data = String(random(100));
     push("ESP12F_IDF", push_data); //15~17 ms
-    Serial.println("[Loop] Push_data   : "+push_data);
+    //Serial.println("[Loop] Push_data   : "+push_data);
     start_time = millis();
     while(millis() - start_time<TEST_DATA_INTERVAL){
       Pull_result = pull("ESP12F_ODF");//18ms
-      Serial.println("[Loop] Pull_result : "+Pull_result);
+      //Serial.println("[Loop] Pull_result : "+Pull_result);
       
       if(Pull_result != "___NULL_DATA___" && Pull_result == push_data && millis() - start_time < TEST_DATA_INTERVAL){
-        Serial.println("[Test]"+(String)(millis() - start_time));
+        Serial.println(millis() - start_time);
         i++;
         break;
       }
@@ -41,7 +40,7 @@ void setup(){
   Init(); 
   Register();
   init_ODFtimestamp();
-  test_v1_latency();
+  //test_v1_latency();
   timestamp = millis();
 }
 void loop(){

@@ -105,13 +105,15 @@ int push(char *df_name, String value){  //return httpcode
 String pull(char *df_name){
   String old_time, new_time;
   String data;
+  unsigned long get_time = millis();
+  
   httpresp result;
   result.HTTPStatusCode = 0;
   result.payload = (char*)malloc(HTTP_RESPONSE_PAYLOAD_SIZE);
   memset(result.payload, 0, HTTP_RESPONSE_PAYLOAD_SIZE);
   GET(&result, df_name,0);
-    
 
+  
   if (result.HTTPStatusCode != 200) {
     Serial.println("[PULL]ERROR, " + String(df_name) + "," + String(result.HTTPStatusCode) +"\n"+String(result.payload));
     continue_error_quota--;
@@ -131,7 +133,6 @@ String pull(char *df_name){
 #endif
       if(result.payload != NULL)
         free(result.payload);
-      GET(&result, df_name,1);
       return last_data;
     }
   }

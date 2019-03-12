@@ -40,6 +40,7 @@
 #define GetHTTPPayload_ERROR -802
 #define GetHTTPCodeERROR -803
 #define NO_NEW_DATA -804
+#define HTTP_ACK_TIMEOUT -805
 
 
 
