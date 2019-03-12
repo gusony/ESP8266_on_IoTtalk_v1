@@ -17,11 +17,12 @@ void test_v1_latency(){
     
     push_data = String(random(100));
     push("ESP12F_IDF", push_data); //15~17 ms
-    //Serial.println("[Loop] Push_data   : "+push_data);
     start_time = millis();
     while(millis() - start_time<TEST_DATA_INTERVAL){
-      Pull_result = pull("ESP12F_ODF");//18ms
-      //Serial.println("[Loop] Pull_result : "+Pull_result);
+      Pull_result = pull("ESP12F_ODF");
+      //v1 - wifi:18ms 
+      //v1 - ethe:35ms
+      
       
       if(Pull_result != "___NULL_DATA___" && Pull_result == push_data && millis() - start_time < TEST_DATA_INTERVAL){
         Serial.println(millis() - start_time);
