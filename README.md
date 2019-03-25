@@ -50,15 +50,15 @@ Upload Speed|115200
 
 ## Arduino Library:
 * [pubsubclient v2.6.0](https://github.com/knolleary/pubsubclient)  ( [API](https://pubsubclient.knolleary.net/) )
-* [UIPEthernet v2.0.6](https://github.com/UIPEthernet/UIPEthernet)
+* [UIPEthernet v2.0.7](https://github.com/UIPEthernet/UIPEthernet)
 * [ArduinoJson v5.13.1](https://arduinojson.org/?utm_source=meta&utm_medium=library.properties)
 
 
 ## Set Library Parameter
 ```
 [UIPEthernet/utility/uipethernet-conf.h]
-    #define UIP_SOCKET_NUMPACKETS    4
-    #define UIP_CONF_MAX_CONNECTIONS 3
+    #define UIP_SOCKET_NUMPACKETS    2
+    #define UIP_CONF_MAX_CONNECTIONS 2
     #define UIP_CONF_UDP_CONNS 1 //reduce memory usage
     #define UIP_CONNECT_TIMEOUT 5
 [pubsubclient/src/PubSubClient.h]
