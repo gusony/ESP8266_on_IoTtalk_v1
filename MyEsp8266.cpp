@@ -35,6 +35,7 @@ char deviceid[37]; // v1 use 12 char, v2 use 36 char
   #endif
 #endif
 
+
 //general function
 void SetDeviceID(void){
   /*
@@ -105,6 +106,7 @@ void Init(void){
   Serial.println("[Init] Finished");
 }
 
+
 #ifdef V1
 int get_DF_index(String target){
   String df_list[DF_NUM] = DF_LIST;
@@ -114,6 +116,7 @@ int get_DF_index(String target){
   return -1;
 }
 #endif
+
 
 //about http package
 String prepare_http_package(const char* HTTP_Type, const char* feature, const char* payload){
@@ -219,18 +222,35 @@ int Eth_TCP_Connect(void){// connected will return 0 or 1 , fail or success
   return 1;
   
 }
+String read_ack_package(void){
+  char * http_resp_package = (char*)malloc(HTTP_RESPONSE_PAYLOAD_SIZE);
+  String result = "";
+  int package_size = 0;
+  
+
+  while( (package_size = TCPclient.available()) > 0){
+    memset(http_resp_package, 0, HTTP_RESPONSE_PAYLOAD_SIZE);
+    TCPclient.read((uint8_t*)http_resp_package, package_size);
+    result += (String)http_resp_package;
+  }
+
+  //free memory
+  free(http_resp_package);
+        
+  return result;
+}
 void Send_HTTPS(httpresp *result, const char* HTTP_Type, const char* feature, const char* payload, bool close_TCP) {
 #ifdef debug_SEND
   Serial.println("[Send]Start, "+(String)HTTP_Type);
 #endif
 
-  String temp = "";
-  int send_pack_leng = 0;
-  const int resp_timeout = 1000;
+  String ack_package_payload = "";
   int package_size = 0;
+  int send_pack_leng = 0;
+  
+  const int resp_timeout = 1000;
   unsigned long start_time = 0;
-  char * http_resp_package = (char*)malloc(MAX_HTTP_PACKAGE_SIZE);
-  memset(http_resp_package, 0, MAX_HTTP_PACKAGE_SIZE);
+  
   
   //check tcp connection, build successful->1, fail->0
   if(Eth_TCP_Connect()!=1){
@@ -246,29 +266,19 @@ void Send_HTTPS(httpresp *result, const char* HTTP_Type, const char* feature, co
   // receive response package
   start_time = millis();
   while (1) {
-    package_size = TCPclient.available();
-    if(package_size > 0){
+    if(TCPclient.available() > 0){// if available > 0 mean that the sent http package has came back
+      
       // read package from enc28j60's buffer , to ESP8266 memory
-      TCPclient.read((uint8_t*)http_resp_package, package_size);
-
+      ack_package_payload = read_ack_package();
+      Serial.println("[SEND]-----ack_package_payload-----"+ack_package_payload+"\n-----");
+      
       // decode HTTP package
-      decodehttp(result, (String)http_resp_package); // decode that response package as http format
-
-      //free memory
-      if(http_resp_package != NULL)
-        free(http_resp_package);
+      decodehttp(result, ack_package_payload); // decode that response package as http format
       
-      if(result->HTTPStatusCode == 200)
-        return;
-      else
-        Serial.println("[SEND]result->HTTPStatusCode != 200\n-------------------\n"+String(http_resp_package)+"\n-------------------");
-      
-      // 如果封包長度太長 一次讀不完 這樣while會持續 回傳的payload應該會有問題 可能只剩後半段
-      // 至少讀過一次封包之後 讀不到 才會離開
-      // 但是有可能 前面的封包就有錯 所以pull不到
-      // feature work
-      if(TCPclient.available() <=0 )// read finish --> exit
-        return;
+      if(result->HTTPStatusCode != 200)
+        Serial.println("[SEND]result->HTTPStatusCode != 200\n-------------------\n"+ack_package_payload+"\n-------------------");
+        
+      return;
     }
     
     if(millis() - start_time >= resp_timeout){
@@ -280,6 +290,7 @@ void Send_HTTPS(httpresp *result, const char* HTTP_Type, const char* feature, co
   
 }
 #endif
+
 void GET(httpresp *result, const char* df_name ,bool close_TCP) {
 #ifdef debug_GET
   Serial.println("[GET]Start");

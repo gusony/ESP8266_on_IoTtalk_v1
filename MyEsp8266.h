@@ -14,7 +14,7 @@
   #define DF_NUM 3   
   #define DM_NAME  "ESP12F" // Device Module name
 
-  #define MAX_HTTP_PACKAGE_SIZE 512
+  //#define MAX_HTTP_PACKAGE_SIZE 1024
   #define HTTP_RESPONSE_PAYLOAD_SIZE 512
 
   #define debug_mode
