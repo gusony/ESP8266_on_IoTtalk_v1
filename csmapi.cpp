@@ -15,8 +15,6 @@ String TS[DF_NUM];
 // and see the official example :  JsonConfigFile.ino
 #endif
 
-extern EthernetClient TCPclient;
-
 
 
 void init_ODFtimestamp(void){

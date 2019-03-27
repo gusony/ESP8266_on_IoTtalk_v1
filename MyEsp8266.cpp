@@ -5,16 +5,16 @@ char ServerIP[50];
 char deviceid[37]; // v1 use 12 char, v2 use 36 char
 
 
-//according to 'MyEsp8266.h' , choose the way you want to use to connect Internet 
+//according to 'MyEsp8266.h' , choose the way you want to use to connect Internet
 #ifdef USE_ETHERNET
   EthernetClient TCPclient;
   byte mac[6] = {0x00, 0x01, 0x02, 0x03, 0x04, 0x05}; // you can set it as you want
-  
+
 #elif defined USE_WIFI
   byte mac[6];            // use esp8266 itself mac address
   char wifissid[50] = ""; //store Wi-Fi SSID , it can come from user keyying in or read from EEPROM
   char wifipass[50] = ""; //store Wi-Fi password
-  uint8_t wifimode = 1;   //1:AP , 0: STA, 
+  uint8_t wifimode = 1;   //1:AP , 0: STA,
   WiFiClient espClient;
   ESP8266WebServer server ( 80 );
 
@@ -22,7 +22,7 @@ char deviceid[37]; // v1 use 12 char, v2 use 36 char
     WiFiClientSecure TCPclient;
     const char* fingerprint = "BF D3 C5 AE D2 75 9F 12 C4 2A 7A 1B 18 F4 9F F5 70 24 22 32";
     String httppw = "";
-  #else 
+  #else
     HTTPClient httpclient;
   #endif
 #endif
@@ -41,13 +41,13 @@ void SetDeviceID(void){
   /*
    * If use wifi , the mac address is in the esp8266 chip
    * If use ethernet, the mac address can be assigned by user
-   * 
+   *
    * In V1, use the mac-address string as deviceID
    * In V2, I use mac-address to generate deviceID(DID)
    */
 
   String DID = ""; //Device ID
-  
+
 #ifdef USE_WIFI
   WiFi.macAddress(mac);
 #endif
@@ -57,11 +57,11 @@ void SetDeviceID(void){
 #elif defined V2
   DID = ESP8266TrueRandom.uuidToString(mac);
 #endif
-  
+
   DID.toCharArray(deviceid, DID.length()+1);
   Serial.println("[SerDeviceID]"+String(deviceid));
 }
-void CheckNetworkStatus(void){
+void CheckNetworkStatus(void){ // inclued Wi-Fi and Ethernet
 #ifdef USE_WIFI
   if( WiFi.status() != WL_CONNECTED )
     connect_to_wifi();
@@ -80,9 +80,9 @@ void Init(void){
  * 1. init Serial input/ourput
  * 2. init Device id(include set mac address)
  * 3. init network(ssid&pawd of Wi-Fi are stored in EEPROM -> so init EEPROM)
- */ 
- 
-  // 1.
+ */
+
+  // 1. initial serial port
   delay(10);
   Serial.begin(115200);
   Serial.println();
@@ -91,7 +91,7 @@ void Init(void){
   // 2.
   //randomSeed(analogRead(0));
   SetDeviceID();
-  
+
   // 3. init Network
 #ifdef USE_WIFI
   EEPROM.begin(512);
@@ -107,8 +107,8 @@ void Init(void){
 }
 
 
-#ifdef V1
-int get_DF_index(String target){
+#ifdef V1 // only for V1
+int get_DF_index(String target){ // find the index of feature in DF_list
   String df_list[DF_NUM] = DF_LIST;
   for(int i = 0; i <= DF_NUM; i++)
     if(df_list[i] == target)
@@ -122,10 +122,9 @@ int get_DF_index(String target){
 String prepare_http_package(const char* HTTP_Type, const char* feature, const char* payload){
   // don't use \r
   String package = String(HTTP_Type) + " /" + String(deviceid) ;  //sum of http string that will be send out
-  if (feature != "") 
+  if (feature != "")
     package += "/" + String(feature);
   package += " HTTP/1.1\n";
-  
 
 #ifdef USE_SSL
   package += "Host: " + String(ServerIP) + "\n" ; // should not use DEFAULT_SERVER_IP
@@ -136,13 +135,13 @@ String prepare_http_package(const char* HTTP_Type, const char* feature, const ch
 #endif
 
   package += "Content-Type: application/json\n";
-  package += "Connection: keep-alive\n";
-  
+  package += "Connection: keep-alive\n"; // need HTTP/1.1 up , HTTP/1.0 not supported
+
   if (payload != "") {
     package += "Content-Length: " + String(String(payload).length()) + "\n\n";
     package += String(payload) + "\n\n";
   }
-  
+
 #ifdef debug_prepare_http_package
   Serial.println("[Prep_http_pack]\n------\n"+package+"------");
 #endif
@@ -151,39 +150,7 @@ String prepare_http_package(const char* HTTP_Type, const char* feature, const ch
 }
 
 #if defined(USE_ETHERNET) || defined(USE_SSL)
-int decodehttp(httpresp *result, String package){ //return payload_length , -1 is error
-  int index = 0;
-  int httpcode;
-  String temp = "";
-
-  index =  package.indexOf("HTTP/");
-  if(index < 0){ // not found HTTP/
-    result->HTTPStatusCode = GetHTTPCodeERROR;
-    Serial.println("[DecodeHTTP]-----\n"+package+"\n-----");
-    return GetHTTPCodeERROR;
-  }
-  result->HTTPStatusCode = ((uint8_t)package[9] - 48) * 100 + ((uint8_t)package[10] - 48) * 10 + (uint8_t)package[11] - 48;
-
-  index = package.indexOf("{");
-  if(index >= 0){
-    temp = package.substring(index);
-
-    if(temp.length() < HTTP_RESPONSE_PAYLOAD_SIZE){
-      temp.toCharArray(result->payload, temp.length());
-      return temp.length();
-    }
-    else{
-      Serial.println("[GetHTTPPayload]HTTP_RESPONSE_PAYLOAD_SIZE not enough");
-      Serial.println("[GetHTTPPayload]temp:\n"+temp);
-      temp.toCharArray(result->payload, HTTP_RESPONSE_PAYLOAD_SIZE);
-      return HTTP_RESPONSE_PAYLOAD_SIZE;
-    }
-    return GetHTTPPayload_ERROR;
-  }
-  return GetHTTPPayload_ERROR;
-}
 int Eth_TCP_Connect(void){// connected will return 0 or 1 , fail or success
-  
   int error_code = 0;
   if( TCPclient.connected() != 1){
     Serial.println("[Eth_TCP]TCP break");
@@ -211,7 +178,7 @@ int Eth_TCP_Connect(void){// connected will return 0 or 1 , fail or success
         TCPclient.flush();
         TCPclient.stop();
         return 0;
-        
+
       default:
         Serial.println("fail");
         Serial.println("[Eth_TCP] Unknow error,"+(String)error_code);
@@ -220,13 +187,12 @@ int Eth_TCP_Connect(void){// connected will return 0 or 1 , fail or success
   }
 
   return 1;
-  
+
 }
 String read_ack_package(void){
   char * http_resp_package = (char*)malloc(HTTP_RESPONSE_PAYLOAD_SIZE);
   String result = "";
   int package_size = 0;
-  
 
   while( (package_size = TCPclient.available()) > 0){
     memset(http_resp_package, 0, HTTP_RESPONSE_PAYLOAD_SIZE);
@@ -234,60 +200,97 @@ String read_ack_package(void){
     result += (String)http_resp_package;
   }
 
-  //free memory
   free(http_resp_package);
-        
+
   return result;
 }
+int decodehttp(httpresp *result, String package){ //return payload_length , -1 is error
+  int index = 0;
+  int httpcode;
+  String temp = "";
+
+
+  index =  package.indexOf("HTTP/");
+  if(index < 0){  // not found HTTP/
+    result->HTTPStatusCode = GetHTTPCodeERROR;
+    Serial.println("[DecodeHTTP] Not found HTTP/ \n----------\n"+package+"\n----------");
+    return GetHTTPCodeERROR;
+  }
+
+  // get http status code
+  result->HTTPStatusCode = ((uint8_t)package[index+9] - 48) * 100 + ((uint8_t)package[index+10] - 48) * 10 + (uint8_t)package[index+11] - 48;
+
+  //post http will not has content -> content-length = 0
+  if( package.indexOf("Content-Length: 0") >= 0) // ok work
+    return 0;
+
+  index = package.indexOf("{");
+  if(index < 0){
+    return GetHTTPPayload_ERROR;
+  }
+  else if(index >= 0){
+    temp = package.substring(index);
+
+    if(temp.length() < HTTP_RESPONSE_PAYLOAD_SIZE){
+      temp.toCharArray(result->payload, temp.length());
+      return temp.length();
+    }
+    else{
+      Serial.println("[GetHTTPPayload]HTTP_RESPONSE_PAYLOAD_SIZE not enough");
+      Serial.println("[GetHTTPPayload]temp:\n"+temp);
+      temp.toCharArray(result->payload, HTTP_RESPONSE_PAYLOAD_SIZE);
+      return HTTP_RESPONSE_PAYLOAD_SIZE;
+    }
+    return GetHTTPPayload_ERROR;
+  }
+  return GetHTTPPayload_ERROR;
+}
+
 void Send_HTTPS(httpresp *result, const char* HTTP_Type, const char* feature, const char* payload, bool close_TCP) {
 #ifdef debug_SEND
   Serial.println("[Send]Start, "+(String)HTTP_Type);
 #endif
 
-  String ack_package_payload = "";
-  int package_size = 0;
-  int send_pack_leng = 0;
-  
+  //String ack_package_payload = "";
   const int resp_timeout = 1000;
   unsigned long start_time = 0;
-  
-  
+
   //check tcp connection, build successful->1, fail->0
   if(Eth_TCP_Connect()!=1){
     result->HTTPStatusCode = TCP_CONNECT_ERROR;
     return;
   }
-  
+
   // send http package using TCP connection
   TCPclient.println(prepare_http_package(HTTP_Type, feature, payload));
   TCPclient.flush();
 
-  
   // receive response package
   start_time = millis();
   while (1) {
-    if(TCPclient.available() > 0){// if available > 0 mean that the sent http package has came back
-      
-      // read package from enc28j60's buffer , to ESP8266 memory
-      ack_package_payload = read_ack_package();
-      Serial.println("[SEND]-----ack_package_payload-----"+ack_package_payload+"\n-----");
-      
-      // decode HTTP package
-      decodehttp(result, ack_package_payload); // decode that response package as http format
-      
-      if(result->HTTPStatusCode != 200)
-        Serial.println("[SEND]result->HTTPStatusCode != 200\n-------------------\n"+ack_package_payload+"\n-------------------");
-        
-      return;
-    }
-    
+    // timeout return
     if(millis() - start_time >= resp_timeout){
       Serial.println("[SEND] wait http resp timeout");
       result->HTTPStatusCode = HTTP_ACK_TIMEOUT;
       return;
     }
+
+    if(TCPclient.available() > 0){// if available > 0 mean that the sent http package has came back
+      // read package from enc28j60's buffer , to ESP8266 memory
+      //ack_package_payload = read_ack_package();
+
+      // decode HTTP package
+      decodehttp(result, read_ack_package()); // decode that response package as http format
+
+      //if(result->HTTPStatusCode != 200)
+        //Serial.println("[SEND]result->HTTPStatusCode != 200\n-------------------\n"+ack_package_payload+"\n-------------------");
+
+      return;
+    }
+
+
   }
-  
+
 }
 #endif
 
@@ -345,7 +348,7 @@ void connect_to_ethernet(void) {
   while (1) {
     Serial.print("[Ethernet]begin");
     int state_code = Ethernet.begin(mac);
-    
+
     if (Ethernet.localIP() != IPAddress(0,0,0,0) || state_code!= 0) {
       Serial.println(" successful");
       break;

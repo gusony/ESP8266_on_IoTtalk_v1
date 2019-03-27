@@ -1,9 +1,10 @@
 #include "csmapi.h"
 
-extern int continue_error_quota;
-extern EthernetClient TCPclient;
+
 #define TEST_DATA_NUM 1000
-#define TEST_DATA_INTERVAL 1000
+#define TEST_DATA_INTERVAL 200
+
+extern int continue_error_quota;
 unsigned long timestamp=0;
 
 void test_v1_latency(){
@@ -14,25 +15,25 @@ void test_v1_latency(){
   Serial.println("test start");
   
   for (i = 0; i<TEST_DATA_NUM; i){
-    
-    push_data = String(random(100));
+    //push_data = String(random(100));
+    push_data = String(i);
     push("ESP12F_IDF", push_data); //15~17 ms
-    //Serial.println("[Loop] Push_data   : "+push_data);
     start_time = millis();
-    while(millis() - start_time<TEST_DATA_INTERVAL){
-      Pull_result = pull("ESP12F_ODF");//18ms
-      //Serial.println("[Loop] Pull_result : "+Pull_result);
-      
-      if(Pull_result != "___NULL_DATA___" && Pull_result == push_data && millis() - start_time < TEST_DATA_INTERVAL){
+    
+    while(millis() - start_time < TEST_DATA_INTERVAL){
+      Pull_result = pull("ESP12F_ODF");
+      // esp wifi 18ms on v1 
+      // mega with ethernet need 38~40 ms on v1
+      if(Pull_result == push_data && millis() - start_time < TEST_DATA_INTERVAL){
         Serial.println(millis() - start_time);
         i++;
         break;
       }
     }
-    delay(100); // take a break
+    push_data = "";
+    Pull_result = "";
+    delay(300); // take a break
   }
-  
-  
   Serial.println("test finish");
 }
 void setup(){
@@ -40,6 +41,7 @@ void setup(){
   Init(); 
   Register();
   init_ODFtimestamp();
+  delay(3000);
   test_v1_latency();
   timestamp = millis();
 }
@@ -60,7 +62,7 @@ void loop(){
     Register();
   }
   
-  if( pull("ESP12F_testlatency") == "1" && millis - timestamp >=1000){
+  if( pull("ESP12F_testlatency") == "1" && millis() - timestamp >=1000){
     test_v1_latency();
     timestamp = millis();
   }

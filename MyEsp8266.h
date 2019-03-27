@@ -5,16 +5,15 @@
   #define all_header
 
   /* define what you need */
-  #define USE_ETHERNET
-  //# define USE_WIFI
+  //#define USE_ETHERNET
+  #define USE_WIFI
   //#define USE_SSL
   #define V1
   //#define V2
   #define DF_LIST {"ESP12F_IDF", "ESP12F_ODF","ESP12F_testlatency"}
-  #define DF_NUM 3   
+  #define DF_NUM 3
   #define DM_NAME  "ESP12F" // Device Module name
 
-  //#define MAX_HTTP_PACKAGE_SIZE 1024
   #define HTTP_RESPONSE_PAYLOAD_SIZE 512
 
   #define debug_mode
@@ -32,19 +31,6 @@
 //    #define debug_push
 //    #define debug_ETH_TCP
   #endif
-
-
-// Error code
-#define TCP_CONNECT_ERROR -800
-#define TCP_RECV_FBACK_BUT_NOT_HTTP 801
-#define GetHTTPPayload_ERROR -802
-#define GetHTTPCodeERROR -803
-#define NO_NEW_DATA -804
-#define HTTP_ACK_TIMEOUT -805
-
-
-
-
 
   /* include general/common library */
   #include <ArduinoJson.h>        // Json library
@@ -71,10 +57,10 @@
     #ifdef USE_SSL
       #define DEFAULT_SERVER_IP "test.iottalk.tw"
     #else
-      #define DEFAULT_SERVER_IP "140.113.199.181"
+      #define DEFAULT_SERVER_IP "140.113.215.2"
     #endif
   #elif defined V2
-    #define DEFAULT_SERVER_IP "140.113.199.198"
+    #define DEFAULT_SERVER_IP "140.113.215.7"
     #include <PubSubClient.h> // MQTT library
   #endif
 
@@ -82,7 +68,7 @@
   #ifdef USE_SSL
     #define ServerPort 443
   #else
-    #define ServerPort 9999
+    #define ServerPort 19999
   #endif
 
   /* pin out */
@@ -100,6 +86,13 @@
   #endif
 #endif
 
+// Error code
+#define TCP_CONNECT_ERROR -800
+#define TCP_RECV_FBACK_BUT_NOT_HTTP 801
+#define GetHTTPPayload_ERROR -802
+#define GetHTTPCodeERROR -803
+#define NO_NEW_DATA -804
+#define HTTP_ACK_TIMEOUT -805
 
 typedef struct httpresp{
   int HTTPStatusCode;
