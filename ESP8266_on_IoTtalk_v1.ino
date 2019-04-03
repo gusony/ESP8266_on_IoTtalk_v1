@@ -3,10 +3,11 @@
 
 #define TEST_DATA_NUM 1000
 #define TEST_DATA_INTERVAL 200
+//#define TEST_V1
 
 extern int continue_error_quota;
 unsigned long timestamp=0;
-
+#ifdef TEST_V1
 void test_v1_latency(){
   int i = 0;
   unsigned long start_time = 0; 
@@ -36,13 +37,16 @@ void test_v1_latency(){
   }
   Serial.println("test finish");
 }
+#endif
+
 void setup(){
   #warning test warning
-  Init(); 
+  Init();
   Register();
+#ifdef V1
   init_ODFtimestamp();
+#endif
   delay(3000);
-  test_v1_latency();
   timestamp = millis();
 }
 void loop(){
@@ -61,11 +65,12 @@ void loop(){
     continue_error_quota = 5;
     Register();
   }
-  
+#ifdef TEST_V1
   if( pull("ESP12F_testlatency") == "1" && millis() - timestamp >=1000){
     test_v1_latency();
     timestamp = millis();
   }
+#endif
   
 
 }
