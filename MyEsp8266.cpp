@@ -9,7 +9,6 @@ char deviceid[37]; // v1 use 12 char, v2 use 36 char
 #ifdef USE_ETHERNET
   EthernetClient TCPclient;
   byte mac[6] = {0x00, 0x01, 0x02, 0x03, 0x04, 0x05}; // you can set it as you want
-
 #elif defined USE_WIFI
   byte mac[6];            // use esp8266 itself mac address
   char wifissid[50] = ""; //store Wi-Fi SSID , it can come from user keyying in or read from EEPROM
@@ -27,38 +26,44 @@ char deviceid[37]; // v1 use 12 char, v2 use 36 char
   #endif
 #endif
 
+
 #ifdef V2
+  String mqtt_mes= "",ctrl_i, ctrl_o;
+  bool new_message = false;
+  long lastMsg, now = millis();
+
+
   #ifdef USE_ETHERNET
     PubSubClient client(TCPclient);
   #elif defined USE_WIFI
-    PubSubClient client(espClient);
+    PubSubClient MQTTclient(espClient);
   #endif
 #endif
 
 
-//general function
+//general function (通用FUNC),  不管Wi-Fi/Ethernet 或 V1/V2 都會用到的
 void SetDeviceID(void){
   /*
    * If use wifi , the mac address is in the esp8266 chip
    * If use ethernet, the mac address can be assigned by user
    *
-   * In V1, use the mac-address string as deviceID
-   * In V2, I use mac-address to generate deviceID(DID)
+   * With V1, use the mac-address string as deviceID
+   * With V2, I use mac-address to generate deviceID(DID)
    */
 
-  String DID = ""; //Device ID
+  String S_deviceid = ""; //String type DeviceID
 
 #ifdef USE_WIFI
-  WiFi.macAddress(mac);
+  WiFi.macAddress(mac); // get esp8266 wifi chip mac address , and store into 'mac' (byte array)
 #endif
 
 #ifdef V1
   for(int i=0; i<6; i++) DID += mac[i]<0x10 ? "0"+String(mac[i], HEX) : String(mac[i], HEX);
 #elif defined V2
-  DID = ESP8266TrueRandom.uuidToString(mac);
+  S_deviceid = ESP8266TrueRandom.uuidToString(mac);
 #endif
 
-  DID.toCharArray(deviceid, DID.length()+1);
+  S_deviceid.toCharArray(deviceid, S_deviceid.length()+1);
   Serial.println("[SerDeviceID]"+String(deviceid));
 }
 void CheckNetworkStatus(void){ // inclued Wi-Fi and Ethernet
@@ -86,11 +91,11 @@ void Init(void){
   delay(10);
   Serial.begin(115200);
   Serial.println();
-  Serial.println("[Init] Serial begin successful!");
+  Serial.println("[Init] Serial OK.");
 
   // 2.
-  //randomSeed(analogRead(0));
   SetDeviceID();
+  Serial.println("[Init] SetDeviceID OK.");
 
   // 3. init Network
 #ifdef USE_WIFI
@@ -99,11 +104,70 @@ void Init(void){
   //clr_eeprom(1); // for debug
   WIFI_init();
 #elif defined USE_ETHERNET
-  connect_to_ethernet();
+  connect_to_ethernet(); // get IP by Router DHCP
   String(DEFAULT_SERVER_IP).toCharArray(ServerIP, 50);
 #endif
   Serial.println("[Init] ServerIP:"+(String)ServerIP);
-  Serial.println("[Init] Finished");
+  Serial.println("[Init] Connect to internet OK");
+
+  //4. if use V2
+#ifdef V2
+  MQTTclient.setServer(ServerIP, 1883);
+  MQTTclient.setCallback(MQTTcallback);
+#endif
+  Serial.println("[Init] MQTT setServer OK");
+
+
+
+  Serial.println("[Init] OK");
+}
+void GET(httpresp *result, const char* df_name ,bool close_TCP) {
+#ifdef debug_GET
+  Serial.println("[GET]Start");
+#endif
+#if defined(USE_ETHERNET) || defined(USE_SSL)
+  Send_HTTPS(result, "GET", df_name, "",close_TCP);
+#else
+  httpclient.begin( "http://" + String(ServerIP) + ":"+String(ServerPort)+"/"+String(deviceid)+"/" + String(df_name) );
+  httpclient.addHeader("Content-Type", "application/json");
+  result->HTTPStatusCode  = httpclient.GET();
+  String http_resp = httpclient.getString();
+  http_resp.toCharArray(result->payload, http_resp.length());
+  httpclient.end();
+#endif
+}
+void PUT(httpresp *result, const char* value, const char* df_name ) {
+#ifdef debug_mode_PUT
+  Serial.println("[PUT]Start");
+  Serial.println("[PUT]"+(String)df_name+","+(String)value);
+#endif
+String data = "{\"data\":[" + String(value) + "]}";
+
+#if defined(USE_ETHERNET) || defined(USE_SSL)
+  Send_HTTPS(result, "PUT", df_name, data.c_str(), 0);
+#else
+  httpclient.begin( "http://" + String(ServerIP) + ":"+String(ServerPort)+"/"+String(deviceid)+"/" + String(df_name));
+  httpclient.addHeader("Content-Type", "application/json");
+  result->HTTPStatusCode = httpclient.PUT(data);
+  httpclient.end();
+#endif
+}
+void POST(httpresp *result, const char* payload) {
+#ifdef debug_POST
+  Serial.println("[POST]Start");
+#endif
+#if defined(USE_ETHERNET) || defined(USE_SSL)
+  //TCPclient.stop();
+  Send_HTTPS(result, "POST", "", payload, 0);
+#else
+  httpclient.begin("http://" + String(ServerIP) + ":"+String(ServerPort)+"/"+String(deviceid));
+  httpclient.addHeader("Content-Type", "application/json");
+  result->HTTPStatusCode = httpclient.POST(String(payload));
+  String http_resp = httpclient.getString();
+  http_resp.toCharArray(result->payload, http_resp.length());
+  httpclient.end();
+#endif
+
 }
 
 
@@ -117,8 +181,30 @@ int get_DF_index(String target){ // find the index of feature in DF_list
 }
 #endif
 
+#ifdef V2 // only for V2
+void MQTTcallback(char* topic, byte* payload, int length) {
+  String number ="";
+  mqtt_mes = "";
+  new_message = true;
+  //Serial.print("[");
+  //Serial.print(topic);
+  //Serial.print("]->");
 
-//about http package
+  for (int i = 0; i < length; i++) {
+    if(i>=1 && i<length-1)
+      number += (char)payload[i];
+    mqtt_mes += (char)payload[i];
+  }
+  if(mqtt_mes.indexOf(String(lastMsg))>=0){
+    //Serial.print(String(lastMsg)+", "+mqtt_mes+", ");
+    Serial.println(millis() - now);
+  }
+}
+#endif
+
+
+//使用Ethernet 需要自己包HTTP封包 跟 收封包的Func
+#if defined(USE_ETHERNET) || defined(USE_SSL)
 String prepare_http_package(const char* HTTP_Type, const char* feature, const char* payload){
   // don't use \r
   String package = String(HTTP_Type) + " /" + String(deviceid) ;  //sum of http string that will be send out
@@ -148,8 +234,6 @@ String prepare_http_package(const char* HTTP_Type, const char* feature, const ch
 
   return(package);
 }
-
-#if defined(USE_ETHERNET) || defined(USE_SSL)
 int Eth_TCP_Connect(void){// connected will return 0 or 1 , fail or success
   int error_code = 0;
   if( TCPclient.connected() != 1){
@@ -245,7 +329,6 @@ int decodehttp(httpresp *result, String package){ //return payload_length , -1 i
   }
   return GetHTTPPayload_ERROR;
 }
-
 void Send_HTTPS(httpresp *result, const char* HTTP_Type, const char* feature, const char* payload, bool close_TCP) {
 #ifdef debug_SEND
   Serial.println("[Send]Start, "+(String)HTTP_Type);
@@ -294,54 +377,6 @@ void Send_HTTPS(httpresp *result, const char* HTTP_Type, const char* feature, co
 }
 #endif
 
-void GET(httpresp *result, const char* df_name ,bool close_TCP) {
-#ifdef debug_GET
-  Serial.println("[GET]Start");
-#endif
-#if defined(USE_ETHERNET) || defined(USE_SSL)
-  Send_HTTPS(result, "GET", df_name, "",close_TCP);
-#else
-  httpclient.begin( "http://" + String(ServerIP) + ":"+String(ServerPort)+"/"+String(deviceid)+"/" + String(df_name) );
-  httpclient.addHeader("Content-Type", "application/json");
-  result->HTTPStatusCode  = httpclient.GET();
-  String http_resp = httpclient.getString();
-  http_resp.toCharArray(result->payload, http_resp.length());
-  httpclient.end();
-#endif
-}
-void PUT(httpresp *result, const char* value, const char* df_name ) {
-#ifdef debug_mode_PUT
-  Serial.println("[PUT]Start");
-  Serial.println("[PUT]"+(String)df_name+","+(String)value);
-#endif
-String data = "{\"data\":[" + String(value) + "]}";
-
-#if defined(USE_ETHERNET) || defined(USE_SSL)
-  Send_HTTPS(result, "PUT", df_name, data.c_str(), 0);
-#else
-  httpclient.begin( "http://" + String(ServerIP) + ":"+String(ServerPort)+"/"+String(deviceid)+"/" + String(df_name));
-  httpclient.addHeader("Content-Type", "application/json");
-  result->HTTPStatusCode = httpclient.PUT(data);
-  httpclient.end();
-#endif
-}
-void POST(httpresp *result, const char* payload) {
-#ifdef debug_POST
-  Serial.println("[POST]Start");
-#endif
-#if defined(USE_ETHERNET) || defined(USE_SSL)
-  //TCPclient.stop();
-  Send_HTTPS(result, "POST", "", payload, 0);
-#else
-  httpclient.begin("http://" + String(ServerIP) + ":"+String(ServerPort)+"/"+String(deviceid));
-  httpclient.addHeader("Content-Type", "application/json");
-  result->HTTPStatusCode = httpclient.POST(String(payload));
-  String http_resp = httpclient.getString();
-  http_resp.toCharArray(result->payload, http_resp.length());
-  httpclient.end();
-#endif
-
-}
 
 #ifdef USE_ETHERNET
 void connect_to_ethernet(void) {
@@ -442,7 +477,6 @@ int connect_to_wifi(void){
     return 0;
   }
 }
-
 /* EEPROM
  * When connect to wifi successfully, it will rewrite the data in eeprom.
  * If Wifi disconnect, it won't rewrite the data.
@@ -521,7 +555,6 @@ uint8_t  read_WiFi_AP_Info(void){
 
   return return_state;
 }
-
 //switch to sta  mode
 String scan_network(void){
   int AP_N, i; //AP_N: AP number
@@ -608,5 +641,3 @@ void AP_mode(void){
   start_web_server();
 }
 #endif
-
-
