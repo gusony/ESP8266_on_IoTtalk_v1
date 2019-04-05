@@ -8,8 +8,8 @@
   //#define USE_ETHERNET
   #define USE_WIFI
   //#define USE_SSL
-  #define V1
-  //#define V2
+  //#define V1
+  #define V2
   #define DF_LIST {"ESP12F_IDF", "ESP12F_ODF","ESP12F_testlatency"}
   #define DF_NUM 3
   #define DM_NAME  "ESP12F" // Device Module name
@@ -44,7 +44,7 @@
     #include <ESP8266WebServer.h>
     #include <ESP8266WiFiMulti.h>
     #include <ESP8266HTTPClient.h>
-    #include <ESP8266TrueRandom.h> // uuid library
+    //#include <ESP8266TrueRandom.h> // uuid library
 
     #ifdef USE_SSL
       #include <WiFiClientSecure.h>
@@ -62,6 +62,7 @@
   #elif defined V2
     #define DEFAULT_SERVER_IP "140.113.215.7"
     #include <PubSubClient.h> // MQTT library
+    #include <ESP8266TrueRandom.h> // uuid library
   #endif
 
   /* set server port*/
@@ -134,5 +135,4 @@ int get_DF_index(String target);
     void saveInfoAndConnectToWiFi(void);
 #endif
 
-
-
+void MQTTcallback(char* topic, byte* payload, int length);
