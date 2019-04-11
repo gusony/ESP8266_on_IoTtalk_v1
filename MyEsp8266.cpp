@@ -204,7 +204,6 @@ void store(String df_name, String topic, String command){
 void MQTTcallback(char* topic, byte* payload, int length) {
   String number ="";
   mqtt_mes = "";
-  new_message = true;
   Serial.print("[");
   Serial.print(topic);
   Serial.print("]->");
@@ -214,6 +213,8 @@ void MQTTcallback(char* topic, byte* payload, int length) {
       number += (char)payload[i];
     mqtt_mes += (char)payload[i];
   }
+  if(mqtt_mes.indexOf("command"))
+    new_message = true;
   Serial.println(mqtt_mes);
   if(mqtt_mes.indexOf(String(lastMsg))>=0){
     //Serial.print(String(lastMsg)+", "+mqtt_mes+", ");
@@ -254,6 +255,7 @@ String state_rev(String state, String rev){
   return(mes);
 }
 void MQTT_Conn(void){
+  TCPclient.stop();
   while (!MQTTclient.connected()) {
     Serial.print("Attempting MQTT connection...");
     if (MQTTclient.connect(String(deviceid).c_str(), ctrl_i.c_str(), 0, true, state_rev("broken",rev).c_str() )){// connect to mqtt server
@@ -413,41 +415,56 @@ String read_ack_package(void){
   
   return result;
 }
-int decodehttp(httpresp *result, String package){ //return payload_length , -1 is error
-  int index = 0;
-  int httpcode;
-  String temp = "";
+int decodehttp(httpresp *result){ //return payload_length , -1 is error
+  int index = 0, httpcode, package_size = 0;
+  char * buf = (char*)malloc(400);
+  String package = "", packet_payload = "";
+  int process = 0; // 0:not found '{'
+                   // 1:found '{' but not found '}'
+                   // 2:found '{' and '}'
 
 
-  index =  package.indexOf("HTTP/");
-  if(index < 0){  // not found HTTP/
-    result->HTTPStatusCode = GetHTTPCodeERROR;
-    Serial.println("[DecodeHTTP] Not found HTTP/ \n----------\n"+package+"\n----------");
-    return GetHTTPCodeERROR;
+  while( (package_size = TCPclient.available()) > 0 || process !=2){ // 可能要處理timeout的問題
+    memset(buf, 0, 400);
+    TCPclient.read((uint8_t*)buf, package_size>=400?399:package_size);
+    package = (String)buf;
+
+    //check HTTP status code 
+    index =  package.indexOf("HTTP/");
+    if(index < 0 && process == 0){  // not found HTTP/
+      result->HTTPStatusCode = GetHTTPCodeERROR;
+      Serial.println("[DecodeHTTP] Not found HTTP/ ");
+      return GetHTTPCodeERROR;
+    }
+    else if(package.indexOf(" OK") >= 0  && process == 0){ // get http status code
+      result->HTTPStatusCode = ((uint8_t)package[index+9] - 48) * 100 + ((uint8_t)package[index+10] - 48) * 10 + (uint8_t)package[index+11] - 48;
+    }
+
+    // check content-length = 0
+    if( package.indexOf("Content-Length: 0") >= 0 && process == 0) // ok work
+      return 0;
+
+    if( (index = package.indexOf("{")) >=0  && process == 0){
+      packet_payload += package.substring(index);
+      process = 1;
+    }
+
+    if((index = package.indexOf("}")) >=0  && process == 1){
+      packet_payload += package;
+      process = 2;
+    }
   }
-
-  // get http status code
-  result->HTTPStatusCode = ((uint8_t)package[index+9] - 48) * 100 + ((uint8_t)package[index+10] - 48) * 10 + (uint8_t)package[index+11] - 48;
-
-  //post http will not has content -> content-length = 0
-  if( package.indexOf("Content-Length: 0") >= 0) // ok work
-    return 0;
-
-  index = package.indexOf("{");
-  if(index < 0){
-    return GetHTTPPayload_ERROR;
-  }
-  else if(index >= 0){
-    temp = package.substring(index);
-
-    if(temp.length() < HTTP_RESPONSE_PAYLOAD_SIZE){
-      temp.toCharArray(result->payload, temp.length());
-      return temp.length();
+  free(buf);
+  
+  if(process == 2){
+    if(packet_payload.length() < HTTP_RESPONSE_PAYLOAD_SIZE){
+      packet_payload.toCharArray(result->payload, packet_payload.length()+1);
+      return packet_payload.length();
     }
     else{
       Serial.println("[GetHTTPPayload]HTTP_RESPONSE_PAYLOAD_SIZE not enough");
-      Serial.println("[GetHTTPPayload]temp:\n"+temp);
-      temp.toCharArray(result->payload, HTTP_RESPONSE_PAYLOAD_SIZE);
+      Serial.println("[GetHTTPPayload]packet_payload:\n"+packet_payload);
+      packet_payload.toCharArray(result->payload, HTTP_RESPONSE_PAYLOAD_SIZE);
       return HTTP_RESPONSE_PAYLOAD_SIZE;
     }
     return GetHTTPPayload_ERROR;
@@ -490,7 +507,7 @@ void Send_HTTPS(httpresp *result, const char* HTTP_Type, const char* feature, co
       //ack_package_payload = read_ack_package();
 
       // decode HTTP package
-      decodehttp(result, read_ack_package()); // decode that response package as http format
+      decodehttp(result); // decode that response package as http format
 
       //if(result->HTTPStatusCode != 200)
         //Serial.println("[SEND]result->HTTPStatusCode != 200\n-------------------\n"+ack_package_payload+"\n-------------------");

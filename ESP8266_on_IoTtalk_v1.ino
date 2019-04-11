@@ -75,7 +75,7 @@ void loop(){
   if(new_message)
     CtrlHandle();
   
-  if (millis() - lastMsg > 300 && IDF_topic != "" ) {
+  if (millis() - lastMsg > 1000 && IDF_topic != "" ) {
     lastMsg = millis();
     MQTTclient.publish(IDF_topic.c_str(), ("["+(String)lastMsg+"]").c_str());
     now = millis();
