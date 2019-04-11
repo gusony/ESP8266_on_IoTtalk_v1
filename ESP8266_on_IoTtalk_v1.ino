@@ -19,20 +19,20 @@ extern long lastMsg, now;
 #ifdef TEST_V1
 void test_v1_latency(){
   int i = 0;
-  unsigned long start_time = 0; 
+  unsigned long start_time = 0;
   String Pull_result = "";
   String push_data = "";
   Serial.println("test start");
-  
+
   for (i = 0; i<TEST_DATA_NUM; i){
     //push_data = String(random(100));
     push_data = String(i);
     push("ESP12F_IDF", push_data); //15~17 ms
     start_time = millis();
-    
+
     while(millis() - start_time < TEST_DATA_INTERVAL){
       Pull_result = pull("ESP12F_ODF");
-      // esp wifi 18ms on v1 
+      // esp wifi 18ms on v1
       // mega with ethernet need 38~40 ms on v1
       if(Pull_result == push_data && millis() - start_time < TEST_DATA_INTERVAL){
         Serial.println(millis() - start_time);
@@ -71,10 +71,10 @@ void loop(){
 #ifdef V2
   if(!MQTTclient.loop()) // like mqtt ping ,to make sure the connection between server
     Register();
-    
+
   if(new_message)
     CtrlHandle();
-  
+
   if (millis() - lastMsg > 1000 && IDF_topic != "" ) {
     lastMsg = millis();
     MQTTclient.publish(IDF_topic.c_str(), ("["+(String)lastMsg+"]").c_str());
@@ -84,7 +84,7 @@ void loop(){
 
 #ifdef V1
   // if error happens too much times, try register
-  if (continue_error_quota <= 0) { 
+  if (continue_error_quota <= 0) {
     Serial.println("[Loop] Try to register");
     continue_error_quota = 5;
     Register();
@@ -97,6 +97,6 @@ void loop(){
     timestamp = millis();
   }
 #endif
-  
+
 
 }

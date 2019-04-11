@@ -7,12 +7,12 @@ extern String httppw;
 #endif
 
 #ifdef V1
-String TS[DF_NUM]; 
+String TS[DF_NUM];
 // Keep comment
 // (X) StaticJsonBuffer<256> JB_TS;
 // (X) JsonObject& JO_TS = JB_TS.createObject();
-// should not use 'global' jsonobject to store or write data, the details are on https://arduinojson.org/v5/faq/why-shouldnt-i-use-a-global-jsonbuffer/ 
-// google search : "Why shouldn't I use a global JsonBuffer?" 
+// should not use 'global' jsonobject to store or write data, the details are on https://arduinojson.org/v5/faq/why-shouldnt-i-use-a-global-jsonbuffer/
+// google search : "Why shouldn't I use a global JsonBuffer?"
 // and see the official example :  JsonConfigFile.ino
 #endif
 
@@ -26,14 +26,14 @@ String pull(char *df_name){
   String old_time, new_time;
   String data;
   unsigned long get_time = millis();
-  
+
   httpresp result;
   result.HTTPStatusCode = 0;
   result.payload = (char*)malloc(HTTP_RESPONSE_PAYLOAD_SIZE);
   memset(result.payload, 0, HTTP_RESPONSE_PAYLOAD_SIZE);
   GET(&result, df_name,0);
 
-  
+
   if (result.HTTPStatusCode != 200) {
     Serial.println("[PULL]ERROR, " + String(df_name) + "," + String(result.HTTPStatusCode) +"\n"+String(result.payload));
     continue_error_quota--;
@@ -42,9 +42,9 @@ String pull(char *df_name){
     continue_error_quota = 5;
     StaticJsonBuffer<HTTP_RESPONSE_PAYLOAD_SIZE> JB_resp;
     JsonObject& JO_resp = JB_resp.parseObject(String(result.payload));
-    
+
     int index = get_DF_index(String(df_name));
-    
+
     if( TS[index] != JO_resp["samples"][0][0].as<String>() ){
       TS[index]    = JO_resp["samples"][0][0].as<String>(); //update timestamp
       String last_data = JO_resp["samples"][0][1][0].as<String>();
@@ -68,17 +68,17 @@ String getProfile(void){
   int i = 0;
   StaticJsonBuffer<512> JB_root;
   JsonObject& JO_root = JB_root.createObject();
-  
+
 #ifdef V1
   JsonObject& JO_profile = JO_root.createNestedObject("profile");
   JO_profile["d_name"] =  String(DM_NAME) + "." + String(deviceid).substring(8);
   JO_profile["dm_name"] = DM_NAME;
   JO_profile["is_sim"] = false;
   JsonArray& JO_df_list = JO_profile.createNestedArray("df_list");
-  for(int i = 0; i < sizeof(df_list)/sizeof(char*); i++)// ArduinoMega point size = 2 
+  for(int i = 0; i < sizeof(df_list)/sizeof(char*); i++)// ArduinoMega point size = 2
     JO_df_list.add( String(df_list[i]) );
 
-#elif defined V2 
+#elif defined V2
   JsonArray& odf_list = JO_root.createNestedArray("odf_list").createNestedArray();
   odf_list.add("ESP12F_ODF"); // some day , i will use for-loop to add it
   odf_list.createNestedArray();
@@ -107,7 +107,7 @@ int Register(void){ // retrun httpcod
 #ifdef debug_register
   Serial.println("[Register]start");
 #endif
-  
+
   CheckNetworkStatus();
 
   httpresp result;
@@ -164,6 +164,6 @@ int push(char *df_name, String value){  //return httpcode
 
   if(result.payload != NULL)
     free(result.payload);
-    
+
   return result.HTTPStatusCode;
 }

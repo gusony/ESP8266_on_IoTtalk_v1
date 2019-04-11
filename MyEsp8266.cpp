@@ -107,11 +107,11 @@ void Init(void){
   WIFI_init();
 #elif defined USE_ETHERNET
   connect_to_ethernet(); // get IP by Router DHCP
-  String(DEFAULT_SERVER_IP).toCharArray(ServerIP, 50); 
+  String(DEFAULT_SERVER_IP).toCharArray(ServerIP, 50);
 #endif
 
 // wifi 從EEPROM 裡面讀 IP
-// ethernet 用default IP 
+// ethernet 用default IP
   Serial.println("[Init] ServerIP:"+String(ServerIP));
   Serial.println("[Init] Connect to internet OK");
 
@@ -122,7 +122,7 @@ void Init(void){
   MQTTclient.setCallback(MQTTcallback);
   Serial.println("[Init] MQTT setServer OK");
 #endif
-  
+
   Serial.println("[Init] OK");
 }
 void GET(httpresp *result, const char* df_name ,bool close_TCP) {
@@ -202,19 +202,20 @@ void store(String df_name, String topic, String command){
   JB_temp.clear();
 }
 void MQTTcallback(char* topic, byte* payload, int length) {
-  String number ="";
+  //String number ="";
   mqtt_mes = "";
   Serial.print("[");
   Serial.print(topic);
   Serial.print("]->");
-  
+
   for (int i = 0; i < length; i++) {
-    if(i>=1 && i<length-1)
-      number += (char)payload[i];
+    //if(i>=1 && i<length-1)
+      //number += (char)payload[i];
     mqtt_mes += (char)payload[i];
   }
   if(mqtt_mes.indexOf("command"))
     new_message = true;
+
   Serial.println(mqtt_mes);
   if(mqtt_mes.indexOf(String(lastMsg))>=0){
     //Serial.print(String(lastMsg)+", "+mqtt_mes+", ");
@@ -269,7 +270,7 @@ void MQTT_Conn(void){
 
       if( MQTTclient.publish(ctrl_i.c_str(), state_rev("online",rev).c_str()) )
         Serial.println("[" +ctrl_i+"]<-"+state_rev("online",rev));
-      
+
       //Serial.println("Register finish.");
       break;
     }
@@ -277,7 +278,7 @@ void MQTT_Conn(void){
       Serial.print("failed, rc=");
       Serial.print(MQTTclient.state());
       Serial.println(" try again in 5 seconds");
-      
+
       delay(5000);
     }
   }
@@ -285,13 +286,13 @@ void MQTT_Conn(void){
 void CtrlHandle(void){
   new_message = false;
   String ok_mes = "{\"state\":\"ok\",\"msg_id\":\"";
-  
+
   DynamicJsonBuffer JB_temp;  // CD:ctrl data, i need a better name
   JsonObject& JO_temp = JB_temp.parseObject(mqtt_mes);
-  
+
   DynamicJsonBuffer JB_ok_mes;  // CD:ctrl data, i need a better name
   JsonObject& JO_ok_mes = JB_ok_mes.createObject();
-  
+
   if(JO_temp.containsKey("command")){ // this CtrlHandle function only care about command, i don't care data
     if( JO_temp["command"].as<String>() == "CONNECT"){
       if(JO_temp.containsKey("odf")){
@@ -303,7 +304,7 @@ void CtrlHandle(void){
 
       ok_mes += JO_temp["msg_id"].as<String>() + "\"}";   //Serial.println("ok_mes = "+ ok_mes);
       MQTTclient.publish(ctrl_i.c_str(), ok_mes.c_str());
-      
+
       if(check_idf("ESP12F_IDF") != -1)
         IDF_topic = JA_CD[check_idf("ESP12F_IDF")][1].as<String>();
     }
@@ -315,7 +316,7 @@ void CtrlHandle(void){
           Serial.println("[Unsubscribe]"+JA_CD[i][0].as<String>()+", ["+JA_CD[i][1].as<String>())+"]";
           break;
         }
-      
+
       String remove_df_name = JO_temp["idf"].as<String>().length() > 0 ? JO_temp["idf"].as<String>() : JO_temp["odf"].as<String>();
       for(int i =0; i<JA_CD.size(); i++)
         if( remove_df_name == JA_CD[i][0].as<String>())
@@ -412,7 +413,7 @@ String read_ack_package(void){
     Serial.println("[readack] "+result);
   }
   free(http_resp_package);
-  
+
   return result;
 }
 int decodehttp(httpresp *result){ //return payload_length , -1 is error
@@ -429,7 +430,7 @@ int decodehttp(httpresp *result){ //return payload_length , -1 is error
     TCPclient.read((uint8_t*)buf, package_size>=400?399:package_size);
     package = (String)buf;
 
-    //check HTTP status code 
+    //check HTTP status code
     index =  package.indexOf("HTTP/");
     if(index < 0 && process == 0){  // not found HTTP/
       result->HTTPStatusCode = GetHTTPCodeERROR;
@@ -455,7 +456,7 @@ int decodehttp(httpresp *result){ //return payload_length , -1 is error
     }
   }
   free(buf);
-  
+
   if(process == 2){
     if(packet_payload.length() < HTTP_RESPONSE_PAYLOAD_SIZE){
       packet_payload.toCharArray(result->payload, packet_payload.length()+1);
