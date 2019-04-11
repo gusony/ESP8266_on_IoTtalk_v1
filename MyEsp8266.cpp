@@ -3,7 +3,7 @@
 int tcp_connect_error_times = 10;
 char ServerIP[50];
 char deviceid[37]; // v1 use 12 char, v2 use 36 char
-
+String idf_list[10] = IDF_LIST;
 
 //according to 'MyEsp8266.h' , choose the way you want to use to connect Internet
 #ifdef USE_ETHERNET
@@ -28,13 +28,17 @@ char deviceid[37]; // v1 use 12 char, v2 use 36 char
 
 
 #ifdef V2
-  String mqtt_mes= "",ctrl_i, ctrl_o;
+  String mqtt_mes= "", ctrl_i, ctrl_o, d_name, rev, IDF_topic;
   bool new_message = false;
   long lastMsg, now = millis();
+  StaticJsonBuffer<512> JB_CD; // Dynamic buffer size is easy to make the esp8266 crash!!!!
+                               // CD:ctrl data, i need a better name
+  JsonArray& JA_CD = JB_CD.createArray(); // store topic and command of idf/odf, format:[["ESP12F_IDF","topic","command"],["ESP12F_ODF","topic","command"]]
 
-
+  
+  
   #ifdef USE_ETHERNET
-    PubSubClient client(TCPclient);
+    PubSubClient MQTTclient(TCPclient);
   #elif defined USE_WIFI
     PubSubClient MQTTclient(espClient);
   #endif
@@ -105,7 +109,7 @@ void Init(void){
   WIFI_init();
 #elif defined USE_ETHERNET
   connect_to_ethernet(); // get IP by Router DHCP
-  String(DEFAULT_SERVER_IP).toCharArray(ServerIP, 50);
+  String(DEFAULT_SERVER_IP).toCharArray(ServerIP, 50); 
 #endif
   Serial.println("[Init] ServerIP:"+(String)ServerIP);
   Serial.println("[Init] Connect to internet OK");
@@ -114,11 +118,9 @@ void Init(void){
 #ifdef V2
   MQTTclient.setServer(ServerIP, 1883);
   MQTTclient.setCallback(MQTTcallback);
+  Serial.println("[Init] MQTT setServer OK");Serial.println("[Init] MQTT setServer OK");
 #endif
-  Serial.println("[Init] MQTT setServer OK");
-
-
-
+  
   Serial.println("[Init] OK");
 }
 void GET(httpresp *result, const char* df_name ,bool close_TCP) {
@@ -182,6 +184,21 @@ int get_DF_index(String target){ // find the index of feature in DF_list
 #endif
 
 #ifdef V2 // only for V2
+int check_idf(String df_name){
+  for(int i =0 ; i<10; i++) // should not use const number
+    if(df_name == idf_list[i])
+      return i;
+
+  return -1;
+}
+void store(String df_name, String topic, String command){
+  DynamicJsonBuffer JB_temp;
+  JsonArray& JA_temp = JA_CD.createNestedArray();
+  JA_temp.add(df_name);
+  JA_temp.add(topic);
+  JA_temp.add(command);
+  JB_temp.clear();
+}
 void MQTTcallback(char* topic, byte* payload, int length) {
   String number ="";
   mqtt_mes = "";
@@ -189,7 +206,7 @@ void MQTTcallback(char* topic, byte* payload, int length) {
   //Serial.print("[");
   //Serial.print(topic);
   //Serial.print("]->");
-
+  
   for (int i = 0; i < length; i++) {
     if(i>=1 && i<length-1)
       number += (char)payload[i];
@@ -200,6 +217,98 @@ void MQTTcallback(char* topic, byte* payload, int length) {
     Serial.println(millis() - now);
   }
 }
+void get_ctrl_chan(String http_PL){
+  DynamicJsonBuffer JB_PUT_resp; //maybe crash , but didn't happend not yet
+  JsonObject& JO_PUT_resp = JB_PUT_resp.parseObject(String(http_PL));
+  ctrl_i = JO_PUT_resp["ctrl_chans"][0].as<String>(); Serial.println("ctrl_i:"+ctrl_i);
+  ctrl_o = JO_PUT_resp["ctrl_chans"][1].as<String>(); Serial.println("ctrl_o:"+ctrl_o);
+  d_name = JO_PUT_resp["name"].as<String>();          Serial.println("d_name:"+d_name);
+  rev    = JO_PUT_resp["rev"].as<String>();
+  JB_PUT_resp.clear();
+}
+String state_rev(String state, String rev){
+  String mes;
+  DynamicJsonBuffer JB_temp;
+  JsonObject& JO_temp = JB_temp.createObject();
+  JO_temp["state"] = state;
+  JO_temp["rev"] = rev;
+  JO_temp.printTo(mes);
+  JB_temp.clear();
+  return(mes);
+}
+void MQTT_Conn(void){
+  while (!MQTTclient.connected()) {
+    Serial.print("Attempting MQTT connection...");
+    if (MQTTclient.connect(String(deviceid).c_str(), ctrl_i.c_str(), 0, true, state_rev("broken",rev).c_str() )){// connect to mqtt server
+      Serial.println("connected state : "+(String)MQTTclient.state());
+
+      if( MQTTclient.subscribe(ctrl_i.c_str()) ) //not necessary
+        Serial.println("ctrl_i subscribe successful!, " + ctrl_i);
+
+      if( MQTTclient.subscribe(ctrl_o.c_str()))
+        Serial.println("ctil_o subscribe successful!, " + ctrl_o);
+
+      if( MQTTclient.publish(ctrl_i.c_str(), state_rev("online",rev).c_str()) )
+        Serial.println("[" +ctrl_i+"]<-"+state_rev("online",rev));
+      
+      Serial.println("Register finish.");
+      break;
+    }
+    else {
+      Serial.print("failed, rc=");
+      Serial.print(MQTTclient.state());
+      Serial.println(" try again in 5 seconds");
+      
+      delay(5000);
+    }
+  }
+}
+void CtrlHandle(void){
+  new_message = false;
+  String ok_mes = "{\"state\":\"ok\",\"msg_id\":\"";
+  
+  DynamicJsonBuffer JB_temp;  // CD:ctrl data, i need a better name
+  JsonObject& JO_temp = JB_temp.parseObject(mqtt_mes);
+  
+  DynamicJsonBuffer JB_ok_mes;  // CD:ctrl data, i need a better name
+  JsonObject& JO_ok_mes = JB_ok_mes.createObject();
+  
+  if(JO_temp.containsKey("command")){ // this CtrlHandle function only care about command, i don't care data
+    
+    
+    if( JO_temp["command"].as<String>() == "CONNECT"){
+      if(JO_temp.containsKey("odf")){
+        store(JO_temp["odf"].as<String>(), JO_temp["topic"].as<String>(),JO_temp["command"].as<String>());
+        MQTTclient.subscribe(JO_temp["topic"].as<String>().c_str());
+      }
+      else if(JO_temp.containsKey("idf"))
+        store(JO_temp["idf"].as<String>(), JO_temp["topic"].as<String>(),JO_temp["command"].as<String>());
+
+      ok_mes += JO_temp["msg_id"].as<String>() + "\"}";   //Serial.println("ok_mes = "+ ok_mes);
+      MQTTclient.publish(ctrl_i.c_str(), ok_mes.c_str());
+      
+      if(check_idf("ESP12F_IDF") != -1)
+        IDF_topic = JA_CD[check_idf("ESP12F_IDF")][1].as<String>();
+    }
+    else if(JO_temp["command"].as<String>() == "DISCONNECT"){
+      
+      /* need to unscribe */
+      for(int i=0; i< JA_CD.size(); i++)
+        if(JA_CD[i][0].as<String>() == JO_temp["idf"].as<String>()  || JA_CD[i][0].as<String>() == JO_temp["odf"].as<String>() ){
+          MQTTclient.unsubscribe(JA_CD[i][1].as<String>().c_str());
+          Serial.println("[Unsubscribe]"+JA_CD[i][0].as<String>()+", ["+JA_CD[i][1].as<String>())+"]";
+          break;
+        }
+      
+      String remove_df_name = JO_temp["idf"].as<String>().length() > 0 ? JO_temp["idf"].as<String>() : JO_temp["odf"].as<String>();
+      for(int i =0; i<JA_CD.size(); i++)
+        if( remove_df_name == JA_CD[i][0].as<String>())
+          JA_CD.remove(i);
+    }
+  }
+}
+
+
 #endif
 
 

@@ -6,7 +6,16 @@
 //#define TEST_V1
 
 extern int continue_error_quota;
+extern String IDF_topic;
+extern PubSubClient MQTTclient;
+extern bool new_message;
 unsigned long timestamp=0;
+
+
+#ifdef V2
+extern long lastMsg, now;
+
+#endif
 #ifdef TEST_V1
 void test_v1_latency(){
   int i = 0;
@@ -59,12 +68,29 @@ void loop(){
   Ethernet.maintain();
 #endif
 
+#ifdef V2
+  if(!MQTTclient.loop()) // like mqtt ping ,to make sure the connection between server
+    Register();
+    
+  if(new_message)
+    CtrlHandle();
+  
+  if (millis() - lastMsg > 300 && IDF_topic != "" ) {
+    lastMsg = millis();
+    MQTTclient.publish(IDF_topic.c_str(), ("["+(String)lastMsg+"]").c_str());
+    now = millis();
+  }
+#endif
+
+#ifdef V1
   // if error happens too much times, try register
   if (continue_error_quota <= 0) { 
     Serial.println("[Loop] Try to register");
     continue_error_quota = 5;
     Register();
   }
+#endif
+
 #ifdef TEST_V1
   if( pull("ESP12F_testlatency") == "1" && millis() - timestamp >=1000){
     test_v1_latency();

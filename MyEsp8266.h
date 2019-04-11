@@ -12,6 +12,8 @@
   #define V2
   #define DF_LIST {"ESP12F_IDF", "ESP12F_ODF","ESP12F_testlatency"}
   #define DF_NUM 3
+  #define IDF_LIST {"ESP12F_IDF"}
+  #define ODF_LIST {"ESP12F_ODF","ESP12F_testlatency"}
   #define DM_NAME  "ESP12F" // Device Module name
 
   #define HTTP_RESPONSE_PAYLOAD_SIZE 512
@@ -134,5 +136,12 @@ int get_DF_index(String target);
     void AP_mode(void);
     void saveInfoAndConnectToWiFi(void);
 #endif
-
+int check_idf(String df_name);
+void store(String df_name, String topic, String command);
 void MQTTcallback(char* topic, byte* payload, int length);
+void get_ctrl_chan(String http_PL);
+String state_rev(String state, String rev);
+void MQTT_Conn(void);
+void CtrlHandle(void);
+
+

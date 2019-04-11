@@ -1,15 +1,16 @@
 #include "csmapi.h"
 int continue_error_quota = 5;
 extern char deviceid[37];
+extern String ctrl_i, ctrl_o, d_name, rev;
 #ifdef USE_SSL
 extern String httppw;
 #endif
 
 #ifdef V1
-// CAN'T UNCOMMENT
-//StaticJsonBuffer<256> JB_TS;
-//JsonObject& JO_TS = JB_TS.createObject();
 String TS[DF_NUM]; 
+// Keep comment
+// (X) StaticJsonBuffer<256> JB_TS;
+// (X) JsonObject& JO_TS = JB_TS.createObject();
 // should not use 'global' jsonobject to store or write data, the details are on https://arduinojson.org/v5/faq/why-shouldnt-i-use-a-global-jsonbuffer/ 
 // google search : "Why shouldn't I use a global JsonBuffer?" 
 // and see the official example :  JsonConfigFile.ino
@@ -60,6 +61,7 @@ String pull(char *df_name){
   return "___NULL_DATA___"; // if HTTP code !=200 or no new data
 }
 #endif
+
 String getProfile(void){
   const char* df_list[] = DF_LIST;
   String result;
@@ -122,6 +124,13 @@ int Register(void){ // retrun httpcod
     memset(result.payload, 0, HTTP_RESPONSE_PAYLOAD_SIZE);
     POST(&result, getProfile().c_str());
   }
+#ifdef V2
+  
+  Serial.println("PUT resp : "+String(result.payload));
+  get_ctrl_chan(String(result.payload));
+  
+  MQTT_Conn();
+#endif  
   Serial.println("[Register] Successful");
 
 #ifdef USE_SSL
