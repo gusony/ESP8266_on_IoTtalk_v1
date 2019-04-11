@@ -35,8 +35,6 @@ String idf_list[10] = IDF_LIST;
                                // CD:ctrl data, i need a better name
   JsonArray& JA_CD = JB_CD.createArray(); // store topic and command of idf/odf, format:[["ESP12F_IDF","topic","command"],["ESP12F_ODF","topic","command"]]
 
-  
-  
   #ifdef USE_ETHERNET
     PubSubClient MQTTclient(TCPclient);
   #elif defined USE_WIFI
@@ -64,7 +62,7 @@ void SetDeviceID(void){
 #ifdef V1
   for(int i=0; i<6; i++) DID += mac[i]<0x10 ? "0"+String(mac[i], HEX) : String(mac[i], HEX);
 #elif defined V2
-  S_deviceid = ESP8266TrueRandom.uuidToString(mac);
+  S_deviceid = "00010203-0405-0000-0a00-0000ff0f3418";//ESP8266TrueRandom.uuidToString(mac);
 #endif
 
   S_deviceid.toCharArray(deviceid, S_deviceid.length()+1);
@@ -111,14 +109,18 @@ void Init(void){
   connect_to_ethernet(); // get IP by Router DHCP
   String(DEFAULT_SERVER_IP).toCharArray(ServerIP, 50); 
 #endif
-  Serial.println("[Init] ServerIP:"+(String)ServerIP);
+
+// wifi 從EEPROM 裡面讀 IP
+// ethernet 用default IP 
+  Serial.println("[Init] ServerIP:"+String(ServerIP));
   Serial.println("[Init] Connect to internet OK");
 
   //4. if use V2
 #ifdef V2
+  Serial.println("[Init] Set serverip "+String(ServerIP));
   MQTTclient.setServer(ServerIP, 1883);
   MQTTclient.setCallback(MQTTcallback);
-  Serial.println("[Init] MQTT setServer OK");Serial.println("[Init] MQTT setServer OK");
+  Serial.println("[Init] MQTT setServer OK");
 #endif
   
   Serial.println("[Init] OK");
@@ -162,6 +164,7 @@ void POST(httpresp *result, const char* payload) {
   //TCPclient.stop();
   Send_HTTPS(result, "POST", "", payload, 0);
 #else
+  Serial.println("[POST] http://" + String(ServerIP) + ":"+String(ServerPort)+"/"+String(deviceid));
   httpclient.begin("http://" + String(ServerIP) + ":"+String(ServerPort)+"/"+String(deviceid));
   httpclient.addHeader("Content-Type", "application/json");
   result->HTTPStatusCode = httpclient.POST(String(payload));
@@ -169,7 +172,6 @@ void POST(httpresp *result, const char* payload) {
   http_resp.toCharArray(result->payload, http_resp.length());
   httpclient.end();
 #endif
-
 }
 
 
@@ -203,23 +205,38 @@ void MQTTcallback(char* topic, byte* payload, int length) {
   String number ="";
   mqtt_mes = "";
   new_message = true;
-  //Serial.print("[");
-  //Serial.print(topic);
-  //Serial.print("]->");
+  Serial.print("[");
+  Serial.print(topic);
+  Serial.print("]->");
   
   for (int i = 0; i < length; i++) {
     if(i>=1 && i<length-1)
       number += (char)payload[i];
     mqtt_mes += (char)payload[i];
   }
+  Serial.println(mqtt_mes);
   if(mqtt_mes.indexOf(String(lastMsg))>=0){
     //Serial.print(String(lastMsg)+", "+mqtt_mes+", ");
     Serial.println(millis() - now);
   }
 }
+void V2_PUT(httpresp *result, String ip, String port, String uuid, String payload){
+#if defined(USE_ETHERNET) || defined(USE_SSL)
+  Send_HTTPS(result, "PUT", "", payload.c_str(), 0);
+#else
+  HTTPClient http;
+  String http_resp = "";
+  http.begin("http://"+ip+":"+port+"/"+String(deviceid));
+  http.addHeader("Content-Type","application/json");
+  result->HTTPStatusCode = http.PUT(payload);
+  http_resp = http.getString();
+  http_resp.toCharArray(result->payload, http_resp.length()+1);
+  httpclient.end();
+#endif
+}
 void get_ctrl_chan(String http_PL){
   DynamicJsonBuffer JB_PUT_resp; //maybe crash , but didn't happend not yet
-  JsonObject& JO_PUT_resp = JB_PUT_resp.parseObject(String(http_PL));
+  JsonObject& JO_PUT_resp = JB_PUT_resp.parseObject(http_PL);
   ctrl_i = JO_PUT_resp["ctrl_chans"][0].as<String>(); Serial.println("ctrl_i:"+ctrl_i);
   ctrl_o = JO_PUT_resp["ctrl_chans"][1].as<String>(); Serial.println("ctrl_o:"+ctrl_o);
   d_name = JO_PUT_resp["name"].as<String>();          Serial.println("d_name:"+d_name);
@@ -251,7 +268,7 @@ void MQTT_Conn(void){
       if( MQTTclient.publish(ctrl_i.c_str(), state_rev("online",rev).c_str()) )
         Serial.println("[" +ctrl_i+"]<-"+state_rev("online",rev));
       
-      Serial.println("Register finish.");
+      //Serial.println("Register finish.");
       break;
     }
     else {
@@ -274,8 +291,6 @@ void CtrlHandle(void){
   JsonObject& JO_ok_mes = JB_ok_mes.createObject();
   
   if(JO_temp.containsKey("command")){ // this CtrlHandle function only care about command, i don't care data
-    
-    
     if( JO_temp["command"].as<String>() == "CONNECT"){
       if(JO_temp.containsKey("odf")){
         store(JO_temp["odf"].as<String>(), JO_temp["topic"].as<String>(),JO_temp["command"].as<String>());
@@ -291,7 +306,6 @@ void CtrlHandle(void){
         IDF_topic = JA_CD[check_idf("ESP12F_IDF")][1].as<String>();
     }
     else if(JO_temp["command"].as<String>() == "DISCONNECT"){
-      
       /* need to unscribe */
       for(int i=0; i< JA_CD.size(); i++)
         if(JA_CD[i][0].as<String>() == JO_temp["idf"].as<String>()  || JA_CD[i][0].as<String>() == JO_temp["odf"].as<String>() ){
@@ -307,8 +321,6 @@ void CtrlHandle(void){
     }
   }
 }
-
-
 #endif
 
 
@@ -383,18 +395,22 @@ int Eth_TCP_Connect(void){// connected will return 0 or 1 , fail or success
 
 }
 String read_ack_package(void){
-  char * http_resp_package = (char*)malloc(HTTP_RESPONSE_PAYLOAD_SIZE);
+  char * http_resp_package = (char*)malloc(400);
   String result = "";
   int package_size = 0;
+  Serial.println("[ReadACK] enter");
 
   while( (package_size = TCPclient.available()) > 0){
-    memset(http_resp_package, 0, HTTP_RESPONSE_PAYLOAD_SIZE);
-    TCPclient.read((uint8_t*)http_resp_package, package_size);
+    Serial.println("1.");
+    memset(http_resp_package, 0, 100);
+    Serial.println("2.");
+    TCPclient.read((uint8_t*)http_resp_package, package_size>=400?399:package_size);
+    Serial.println("3."+(String)http_resp_package);
     result += (String)http_resp_package;
+    Serial.println("[readack] "+result);
   }
-
   free(http_resp_package);
-
+  
   return result;
 }
 int decodehttp(httpresp *result, String package){ //return payload_length , -1 is error
@@ -443,7 +459,6 @@ void Send_HTTPS(httpresp *result, const char* HTTP_Type, const char* feature, co
   Serial.println("[Send]Start, "+(String)HTTP_Type);
 #endif
 
-  //String ack_package_payload = "";
   const int resp_timeout = 1000;
   unsigned long start_time = 0;
 
@@ -454,6 +469,8 @@ void Send_HTTPS(httpresp *result, const char* HTTP_Type, const char* feature, co
   }
 
   // send http package using TCP connection
+  Serial.print("[SendHTTP] ");
+  Serial.println(prepare_http_package(HTTP_Type, feature, payload));
   TCPclient.println(prepare_http_package(HTTP_Type, feature, payload));
   TCPclient.flush();
 
@@ -468,6 +485,7 @@ void Send_HTTPS(httpresp *result, const char* HTTP_Type, const char* feature, co
     }
 
     if(TCPclient.available() > 0){// if available > 0 mean that the sent http package has came back
+      Serial.println("[SendHTTP] available>0");
       // read package from enc28j60's buffer , to ESP8266 memory
       //ack_package_payload = read_ack_package();
 
@@ -736,7 +754,17 @@ void start_web_server(void){
     server.handleClient();
 }
 void AP_mode(void){
-  String softapname = "ESP12F-"+String(deviceid);
+  String softapname = "ESP12F-";
+  byte mac[6];
+  WiFi.macAddress(mac);
+  for (int i = 0; i < 6; ++i)
+  {
+    char buf[3];
+    sprintf(buf, "%X", mac[i]);
+    if(mac[i] < 0x10 )
+      softapname += "0";
+    softapname += buf;
+  }
   Serial.println("[AP_Name]:"+softapname);
 
   IPAddress ip(192, 168, 0, 1);

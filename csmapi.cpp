@@ -114,9 +114,8 @@ int Register(void){ // retrun httpcod
   result.HTTPStatusCode = 0;
   result.payload = (char*)malloc(HTTP_RESPONSE_PAYLOAD_SIZE);
   memset(result.payload, 0, HTTP_RESPONSE_PAYLOAD_SIZE);
-  Serial.println("[Register]"+getProfile());
+#ifdef V1
   POST(&result, getProfile().c_str());
-
   while ( result.HTTPStatusCode != 200){
     Serial.println("[Register]Fail, code"+String(result.HTTPStatusCode));
     Serial.println(result.payload);
@@ -124,13 +123,14 @@ int Register(void){ // retrun httpcod
     memset(result.payload, 0, HTTP_RESPONSE_PAYLOAD_SIZE);
     POST(&result, getProfile().c_str());
   }
-#ifdef V2
-  
-  Serial.println("PUT resp : "+String(result.payload));
+#elif defined V2
+  while(result.HTTPStatusCode != 200){
+    V2_PUT(&result, "140.113.215.7", "9992", String(deviceid), getProfile() );
+  }
   get_ctrl_chan(String(result.payload));
-  
   MQTT_Conn();
-#endif  
+#endif
+
   Serial.println("[Register] Successful");
 
 #ifdef USE_SSL

@@ -5,8 +5,8 @@
   #define all_header
 
   /* define what you need */
-  //#define USE_ETHERNET
-  #define USE_WIFI
+  #define USE_ETHERNET
+  //#define USE_WIFI
   //#define USE_SSL
   //#define V1
   #define V2
@@ -64,14 +64,14 @@
   #elif defined V2
     #define DEFAULT_SERVER_IP "140.113.215.7"
     #include <PubSubClient.h> // MQTT library
-    #include <ESP8266TrueRandom.h> // uuid library
+    //#include <ESP8266TrueRandom.h> // uuid library
   #endif
 
   /* set server port*/
   #ifdef USE_SSL
     #define ServerPort 443
   #else
-    #define ServerPort 19999
+    #define ServerPort 9992//19999
   #endif
 
   /* pin out */
@@ -112,7 +112,7 @@ int get_DF_index(String target);
   void connect_to_ethernet(void);
   String prepare_http_package(const char* HTTP_Type, const char* feature, const char* payload);
   int Eth_TCP_Connect(void);
-  void Send_HTTPS(httpresp *result, const char* HTTP_Type, const char* feature, const char* payload);
+  void Send_HTTPS(httpresp *result, const char* HTTP_Type, const char* feature, const char* payload, bool close_TCP);
   void GET(httpresp *result, const char* feature ,bool close_TCP);
   void PUT(httpresp *result, const char* value, const char* feature );
   void POST(httpresp *result, const char* payload);
@@ -143,5 +143,5 @@ void get_ctrl_chan(String http_PL);
 String state_rev(String state, String rev);
 void MQTT_Conn(void);
 void CtrlHandle(void);
-
+void V2_PUT(httpresp *result, String ip, String port, String uuid, String payload);
 
