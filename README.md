@@ -47,6 +47,9 @@ Debug Level|None
 Reset Method|ck
 Upload Speed|115200
 
+## Board
+* ESP8266 by ESP8266 Community ver 2.4.2
+
 
 ## Arduino Library:
 * [pubsubclient v2.6.0](https://github.com/knolleary/pubsubclient)  ( [API](https://pubsubclient.knolleary.net/) )
