@@ -8,7 +8,12 @@ String idf_list[10] = IDF_LIST;
 //according to 'MyEsp8266.h' , choose the way you want to use to connect Internet
 #ifdef USE_ETHERNET
   EthernetClient TCPclient;
-  byte mac[6] = {0x00, 0x01, 0x02, 0x03, 0x04, 0x05}; // you can set it as you want
+  //byte mac[6] = {0x00, 0x01, 0x02, 0x03, 0x04, 0x05}; // you can set it as you want
+  uint8_t mac[6] = {MACADDRESS};
+  uint8_t myIP[4] = {MYIPADDR};
+  uint8_t myMASK[4] = {MYIPMASK};
+  uint8_t myDNS[4] = {MYDNS};
+  uint8_t myGW[4] = {MYGW};
 #elif defined USE_WIFI
   byte mac[6];            // use esp8266 itself mac address
   char wifissid[50] = ""; //store Wi-Fi SSID , it can come from user keyying in or read from EEPROM
@@ -161,7 +166,6 @@ void POST(httpresp *result, const char* payload) {
   Serial.println("[POST]Start");
 #endif
 #if defined(USE_ETHERNET) || defined(USE_SSL)
-  //TCPclient.stop();
   Send_HTTPS(result, "POST", "", payload, 0);
 #else
   Serial.println("[POST] http://" + String(ServerIP) + ":"+String(ServerPort)+"/"+String(deviceid));
@@ -202,24 +206,23 @@ void store(String df_name, String topic, String command){
   JB_temp.clear();
 }
 void MQTTcallback(char* topic, byte* payload, int length) {
-  //String number ="";
   mqtt_mes = "";
-  Serial.print("[");
-  Serial.print(topic);
-  Serial.print("]->");
+//  Serial.print("[");
+//  Serial.print(topic);
+//  Serial.print("]->");
 
   for (int i = 0; i < length; i++) {
-    //if(i>=1 && i<length-1)
-      //number += (char)payload[i];
     mqtt_mes += (char)payload[i];
   }
+  Serial.println(mqtt_mes);
+  
+  
   if(mqtt_mes.indexOf("command"))
     new_message = true;
 
-  Serial.println(mqtt_mes);
   if(mqtt_mes.indexOf(String(lastMsg))>=0){
-    //Serial.print(String(lastMsg)+", "+mqtt_mes+", ");
-    Serial.println(millis() - now);
+    //Serial.println(millis() - lastMsg);
+    //Serial.println(millis() - now);
   }
 }
 void V2_PUT(httpresp *result, String ip, String port, String uuid, String payload){
@@ -256,7 +259,6 @@ String state_rev(String state, String rev){
   return(mes);
 }
 void MQTT_Conn(void){
-  TCPclient.stop();
   while (!MQTTclient.connected()) {
     Serial.print("Attempting MQTT connection...");
     if (MQTTclient.connect(String(deviceid).c_str(), ctrl_i.c_str(), 0, true, state_rev("broken",rev).c_str() )){// connect to mqtt server
@@ -363,7 +365,8 @@ int Eth_TCP_Connect(void){// connected will return 0 or 1 , fail or success
   if( TCPclient.connected() != 1){
     Serial.println("[Eth_TCP]TCP break");
     Serial.println("[Eth_TCP] tcp connect to "+(String)ServerIP+", "+(String)ServerPort);
-    switch(error_code = TCPclient.connect(ServerIP, ServerPort)){
+    //switch(error_code = TCPclient.connect(ServerIP, ServerPort)){
+    switch(error_code = TCPclient.connect(c_toIPAddr(&ServerIP[0]), ServerPort)){
       case 1 : //Success
         Serial.println("[Eth_TCP] TCP successful");
         return 1;
@@ -487,8 +490,6 @@ void Send_HTTPS(httpresp *result, const char* HTTP_Type, const char* feature, co
   }
 
   // send http package using TCP connection
-  Serial.print("[SendHTTP] ");
-  Serial.println(prepare_http_package(HTTP_Type, feature, payload));
   TCPclient.println(prepare_http_package(HTTP_Type, feature, payload));
   TCPclient.flush();
 
@@ -503,16 +504,8 @@ void Send_HTTPS(httpresp *result, const char* HTTP_Type, const char* feature, co
     }
 
     if(TCPclient.available() > 0){// if available > 0 mean that the sent http package has came back
-      Serial.println("[SendHTTP] available>0");
-      // read package from enc28j60's buffer , to ESP8266 memory
-      //ack_package_payload = read_ack_package();
-
       // decode HTTP package
       decodehttp(result); // decode that response package as http format
-
-      //if(result->HTTPStatusCode != 200)
-        //Serial.println("[SEND]result->HTTPStatusCode != 200\n-------------------\n"+ack_package_payload+"\n-------------------");
-
       return;
     }
 
@@ -524,23 +517,40 @@ void Send_HTTPS(httpresp *result, const char* HTTP_Type, const char* feature, co
 
 
 #ifdef USE_ETHERNET
+IPAddress c_toIPAddr (char *ip){
+  String S_ip = String(ip);
+  int i_ip[4], i;
+  int index = 0;
+  index = S_ip.indexOf('.');
+  i_ip[0] = S_ip.substring(0,index).toInt();
+  
+  for(i = 1; i < 3; i++){
+    i_ip[i] = S_ip.substring(index+1, S_ip.indexOf('.',index+1)).toInt();
+    index = S_ip.indexOf('.',index+1);
+  }
+  i_ip[3] = S_ip.substring(index+1).toInt();
+  
+  return(IPAddress(i_ip[0],i_ip[1],i_ip[2],i_ip[3]));
+}
 void connect_to_ethernet(void) {
-  while (1) {
+  while (Ethernet.linkStatus() != 1) {
     Serial.print("[Ethernet]begin");
-    int state_code = Ethernet.begin(mac);
+    Ethernet.begin(mac,myIP,myDNS,myGW,myMASK);//Ethernet.begin(mac);
 
-    if (Ethernet.localIP() != IPAddress(0,0,0,0) || state_code!= 0) {
+    //if (Ethernet.localIP() != IPAddress(0,0,0,0) || state_code!= 0) {
+    if(Ethernet.linkStatus() == 1){
       Serial.println(" successful");
       break;
     }
     else{
-      Serial.println(" fail, "+(String)state_code);
+      Serial.println(" fail, "+String(Ethernet.linkStatus()));
     }
     delay(500);
   }
   Serial.print("[Ethernet]localIP:");
   Serial.println(Ethernet.localIP());
 }
+
 #endif
 
 #ifdef USE_WIFI

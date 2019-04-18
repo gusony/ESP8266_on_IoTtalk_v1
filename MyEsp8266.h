@@ -39,6 +39,11 @@
 
   /* choose the physical layer */
   #ifdef USE_ETHERNET
+    #define MYIPADDR 192,168,1,6
+    #define MYIPMASK 255,255,255,0
+    #define MYDNS 192,168,1,1
+    #define MYGW 192,168,1,1
+    #define MACADDRESS 0x00,0x01,0x02,0x03,0x04,0x05
     #include <UIPEthernet.h> //ENC28J60 module driver
   #elif defined USE_WIFI
     #include <EEPROM.h>
@@ -110,6 +115,7 @@ int get_DF_index(String target);
 
 //#ifdef USE_ETHERNET
   void connect_to_ethernet(void);
+  IPAddress c_toIPAddr (char *ip);
   String prepare_http_package(const char* HTTP_Type, const char* feature, const char* payload);
   int Eth_TCP_Connect(void);
   void Send_HTTPS(httpresp *result, const char* HTTP_Type, const char* feature, const char* payload, bool close_TCP);

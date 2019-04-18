@@ -15,6 +15,9 @@ String TS[DF_NUM];
 // google search : "Why shouldn't I use a global JsonBuffer?"
 // and see the official example :  JsonConfigFile.ino
 #endif
+#ifdef USE_ETHERNET
+  extern EthernetClient TCPclient;
+#endif
 
 
 #ifdef V1

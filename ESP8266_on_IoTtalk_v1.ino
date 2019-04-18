@@ -57,6 +57,8 @@ void setup(){
 #endif
   delay(3000);
   timestamp = millis();
+  lastMsg = millis();
+  now = millis();
 }
 void loop(){
 #ifdef USE_WIFI
@@ -75,11 +77,11 @@ void loop(){
   if(new_message)
     CtrlHandle();
 
-  if (millis() - lastMsg > 1000 && IDF_topic != "" ) {
-    lastMsg = millis();
-    MQTTclient.publish(IDF_topic.c_str(), ("["+(String)lastMsg+"]").c_str());
-    now = millis();
-  }
+//  if (millis() - lastMsg > 1000 && IDF_topic != "" ) {
+//    lastMsg = millis();
+//    MQTTclient.publish(IDF_topic.c_str(), ("["+(String)lastMsg+"]").c_str()); // 1 ms
+//    now = millis();
+//  }
 #endif
 
 #ifdef V1
