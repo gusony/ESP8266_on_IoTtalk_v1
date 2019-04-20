@@ -105,6 +105,8 @@ void Init(void){
   Serial.println("[Init] SetDeviceID OK.");
 
   // 3. init Network
+  // wifi 從EEPROM 裡面讀 IP
+  // ethernet 用default IP
 #ifdef USE_WIFI
   EEPROM.begin(512);
   pinMode(CLEAREEPROM, INPUT_PULLUP);
@@ -114,9 +116,6 @@ void Init(void){
   connect_to_ethernet(); // get IP by Router DHCP
   String(DEFAULT_SERVER_IP).toCharArray(ServerIP, 50);
 #endif
-
-// wifi 從EEPROM 裡面讀 IP
-// ethernet 用default IP
   Serial.println("[Init] ServerIP:"+String(ServerIP));
   Serial.println("[Init] Connect to internet OK");
 
@@ -207,23 +206,19 @@ void store(String df_name, String topic, String command){
 }
 void MQTTcallback(char* topic, byte* payload, int length) {
   mqtt_mes = "";
-//  Serial.print("[");
-//  Serial.print(topic);
-//  Serial.print("]->");
-
+  
   for (int i = 0; i < length; i++) {
     mqtt_mes += (char)payload[i];
   }
-  Serial.println(mqtt_mes);
   
+  Serial.print("[");
+  Serial.print(topic);
+  Serial.print("]->");
+  Serial.println(mqtt_mes);
   
   if(mqtt_mes.indexOf("command"))
     new_message = true;
 
-  if(mqtt_mes.indexOf(String(lastMsg))>=0){
-    //Serial.println(millis() - lastMsg);
-    //Serial.println(millis() - now);
-  }
 }
 void V2_PUT(httpresp *result, String ip, String port, String uuid, String payload){
 #if defined(USE_ETHERNET) || defined(USE_SSL)
@@ -240,12 +235,17 @@ void V2_PUT(httpresp *result, String ip, String port, String uuid, String payloa
 #endif
 }
 void get_ctrl_chan(String http_PL){
+  Serial.println("[get_cha]"+http_PL);
   DynamicJsonBuffer JB_PUT_resp; //maybe crash , but didn't happend not yet
   JsonObject& JO_PUT_resp = JB_PUT_resp.parseObject(http_PL);
   ctrl_i = JO_PUT_resp["ctrl_chans"][0].as<String>(); Serial.println("ctrl_i:"+ctrl_i);
+  //ctrl_i = "00010203-0405-0000-0a00-0000ff0f3418\\ctrl\\i";
   ctrl_o = JO_PUT_resp["ctrl_chans"][1].as<String>(); Serial.println("ctrl_o:"+ctrl_o);
+  //ctrl_o = "00010203-0405-0000-0a00-0000ff0f3418\\ctrl\\o";
   d_name = JO_PUT_resp["name"].as<String>();          Serial.println("d_name:"+d_name);
+  //d_name ="012.ESP12F";
   rev    = JO_PUT_resp["rev"].as<String>();
+  //rev ="660d6056-e940-4d93-87be-d84f119a37ef";
   JB_PUT_resp.clear();
 }
 String state_rev(String state, String rev){
@@ -421,7 +421,8 @@ String read_ack_package(void){
 }
 int decodehttp(httpresp *result){ //return payload_length , -1 is error
   int index = 0, httpcode, package_size = 0;
-  char * buf = (char*)malloc(400);
+  int buz_size = 512;
+  char * buf = (char*)malloc(buz_size);
   String package = "", packet_payload = "";
   int process = 0; // 0:not found '{'
                    // 1:found '{' but not found '}'
@@ -429,9 +430,11 @@ int decodehttp(httpresp *result){ //return payload_length , -1 is error
 
 
   while( (package_size = TCPclient.available()) > 0 || process !=2){ // 可能要處理timeout的問題
-    memset(buf, 0, 400);
-    TCPclient.read((uint8_t*)buf, package_size>=400?399:package_size);
+    memset(buf, 0, buz_size);
+    TCPclient.read((uint8_t*)buf, package_size>buz_size?buz_size:package_size);
     package = (String)buf;
+    if(package.indexOf(2) > -1)
+      package[package.indexOf(2)] =' ';
 
     //check HTTP status code
     index =  package.indexOf("HTTP/");
@@ -450,11 +453,14 @@ int decodehttp(httpresp *result){ //return payload_length , -1 is error
 
     if( (index = package.indexOf("{")) >=0  && process == 0){
       packet_payload += package.substring(index);
+      Serial.println("-----1-----\n"+packet_payload+"\n----------");
       process = 1;
     }
-
+    
     if((index = package.indexOf("}")) >=0  && process == 1){
       packet_payload += package;
+      Serial.println("-----2-----\n"+package+"\n----------");
+      Serial.println("-----2-----\n"+packet_payload+"\n----------");
       process = 2;
     }
   }

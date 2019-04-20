@@ -67,7 +67,7 @@
       #define DEFAULT_SERVER_IP "140.113.215.2"
     #endif
   #elif defined V2
-    #define DEFAULT_SERVER_IP "140.113.215.7"
+    #define DEFAULT_SERVER_IP "140.113.199.198"
     #include <PubSubClient.h> // MQTT library
     //#include <ESP8266TrueRandom.h> // uuid library
   #endif
