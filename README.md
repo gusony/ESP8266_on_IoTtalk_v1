@@ -74,6 +74,7 @@ Upload Speed|115200
 2. ~~寫Init()~~
 3. arduinojson library update to 6.10.0 version
 4. Pubsubclient library update from 2.6.0 to 2.7.0
+5. 把要改的參數移到config.h
 
 ## Variable
 * ServerIP/host : char array, global variable
