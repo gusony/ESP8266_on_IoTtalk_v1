@@ -1,49 +1,17 @@
 /*
    my esp8266 wifi function
 */
+
+
 #ifndef all_header
   #define all_header
-
-  /* define what you need */
-  #define USE_ETHERNET
-  //#define USE_WIFI
-  //#define USE_SSL
-  //#define V1
-  #define V2
-  #define DF_LIST {"ESP12F_IDF", "ESP12F_ODF","ESP12F_testlatency"}
-  #define DF_NUM 3
-  #define IDF_LIST {"ESP12F_IDF"}
-  #define ODF_LIST {"ESP12F_ODF","ESP12F_testlatency"}
-  #define DM_NAME  "ESP12F" // Device Module name
-
-  #define HTTP_RESPONSE_PAYLOAD_SIZE 512
-
-  #define debug_mode
-  #ifdef debug_mode
-//    #define debug_prepare_http_package
-//    #define debug_SEND
-//    #define debug_GET
-//    #define debug_mode_PUT
-//    #define debug_POST
-//    #define debug_getprofile
-//    #define debug_register
-//    #define debug_checknetstatus
-//    #define debug_getProfile
-//    #define debug_pull
-//    #define debug_push
-//    #define debug_ETH_TCP
-  #endif
+  #include "config.h"
 
   /* include general/common library */
   #include <ArduinoJson.h>        // Json library
 
   /* choose the physical layer */
   #ifdef USE_ETHERNET
-    #define MYIPADDR 192,168,1,6
-    #define MYIPMASK 255,255,255,0
-    #define MYDNS 192,168,1,1
-    #define MYGW 192,168,1,1
-    #define MACADDRESS 0x00,0x01,0x02,0x03,0x04,0x05
     #include <UIPEthernet.h> //ENC28J60 module driver
   #elif defined USE_WIFI
     #include <EEPROM.h>
@@ -51,46 +19,16 @@
     #include <ESP8266WebServer.h>
     #include <ESP8266WiFiMulti.h>
     #include <ESP8266HTTPClient.h>
-    //#include <ESP8266TrueRandom.h> // uuid library
 
     #ifdef USE_SSL
       #include <WiFiClientSecure.h>
     #endif
-    //#define FORCE_CONNECT  //if you don't want into ap_setting(),enable it
+    
   #endif
 
   /* set server ip */
-  #ifdef V1
-    #ifdef USE_SSL
-      #define DEFAULT_SERVER_IP "test.iottalk.tw"
-    #else
-      #define DEFAULT_SERVER_IP "140.113.215.2"
-    #endif
-  #elif defined V2
-    #define DEFAULT_SERVER_IP "140.113.199.198"
+  #ifdef  V2
     #include <PubSubClient.h> // MQTT library
-    //#include <ESP8266TrueRandom.h> // uuid library
-  #endif
-
-  /* set server port*/
-  #ifdef USE_SSL
-    #define ServerPort 443
-  #else
-    #define ServerPort 9992//19999
-  #endif
-
-  /* pin out */
-  #define UPLOAD       0  // when you want to upload code to esp8266, this pin must be LOW, will not be used on Nodemcu
-  #define LEDPIN       2  // on board led
-  #define CLEAREEPROM  4 //hold for 5 second , it will erease the contain in eeprom
-  #define TX           "TXD"
-  #define RX           "RXD"
-
-  #ifdef USE_ETHERNET
-    #define ETHERNET_SO  12
-    #define ETHERNET_SI  13
-    #define ETHERNET_SCK 14
-    #define ETHERNET_CS  15
   #endif
 #endif
 

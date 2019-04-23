@@ -8,12 +8,11 @@ String idf_list[10] = IDF_LIST;
 //according to 'MyEsp8266.h' , choose the way you want to use to connect Internet
 #ifdef USE_ETHERNET
   EthernetClient TCPclient;
-  //byte mac[6] = {0x00, 0x01, 0x02, 0x03, 0x04, 0x05}; // you can set it as you want
-  uint8_t mac[6] = {MACADDRESS};
-  uint8_t myIP[4] = {MYIPADDR};
+  uint8_t mac[6]    = {MACADDRESS};
+  uint8_t myIP[4]   = {MYIPADDR};
   uint8_t myMASK[4] = {MYIPMASK};
-  uint8_t myDNS[4] = {MYDNS};
-  uint8_t myGW[4] = {MYGW};
+  uint8_t myDNS[4]  = {MYDNS};
+  uint8_t myGW[4]   = {MYGW};
 #elif defined USE_WIFI
   byte mac[6];            // use esp8266 itself mac address
   char wifissid[50] = ""; //store Wi-Fi SSID , it can come from user keyying in or read from EEPROM
@@ -48,7 +47,7 @@ String idf_list[10] = IDF_LIST;
 #endif
 
 
-//general function (通用FUNC),  不管Wi-Fi/Ethernet 或 V1/V2 都會用到的
+//general function (通用涵式),  不管Wi-Fi/Ethernet 或 V1/V2 都會用到的
 void SetDeviceID(void){
   /*
    * If use wifi , the mac address is in the esp8266 chip
