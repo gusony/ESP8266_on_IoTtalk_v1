@@ -1,22 +1,13 @@
 #include "csmapi.h"
 
+// general variable
+unsigned long Pull_TS=0; // TS: Timestamp
 
+
+//#define V1
+#ifdef TEST_V1
 #define TEST_DATA_NUM 1000
 #define TEST_DATA_INTERVAL 200
-//#define TEST_V1
-
-extern int continue_error_quota;
-extern String IDF_topic;
-extern PubSubClient MQTTclient;
-extern bool new_message;
-unsigned long timestamp=0;
-
-
-#ifdef V2
-extern long lastMsg, now;
-
-#endif
-#ifdef TEST_V1
 void test_v1_latency(){
   int i = 0;
   unsigned long start_time = 0;
@@ -48,6 +39,12 @@ void test_v1_latency(){
 }
 #endif
 
+#ifdef V2
+extern String IDF_topic;
+extern PubSubClient MQTTclient;
+extern bool new_message;
+#endif
+
 void setup(){
   #warning test warning
   Init();
@@ -56,9 +53,7 @@ void setup(){
   init_ODFtimestamp();
 #endif
   delay(3000);
-  timestamp = millis();
-  lastMsg = millis();
-  now = millis();
+  Pull_TS = millis();
 }
 void loop(){
 #ifdef USE_WIFI
@@ -77,26 +72,18 @@ void loop(){
   if(new_message)
     CtrlHandle();
 
-//  if (millis() - lastMsg > 1000 && IDF_topic != "" ) {
-//    lastMsg = millis();
-//    MQTTclient.publish(IDF_topic.c_str(), ("["+(String)lastMsg+"]").c_str()); // 1 ms
-//    now = millis();
+//  if (millis() - Pull_TS > 1000 && IDF_topic != "" ) {
+//    Pull_TS = millis();
+//    MQTTclient.publish(IDF_topic.c_str(), ("["+(String)Pull_TS+"]").c_str()); // 1 ms
 //  }
 #endif
 
-#ifdef V1
-  // if error happens too much times, try register
-  if (continue_error_quota <= 0) {
-    Serial.println("[Loop] Try to register");
-    continue_error_quota = 5;
-    Register();
-  }
-#endif
+
 
 #ifdef TEST_V1
-  if( pull("ESP12F_testlatency") == "1" && millis() - timestamp >=1000){
+  if( pull("ESP12F_testlatency") == "1" && millis() - Pull_TS >=1000){
     test_v1_latency();
-    timestamp = millis();
+    Pull_TS = millis();
   }
 #endif
 
