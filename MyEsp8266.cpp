@@ -34,7 +34,6 @@ String idf_list[10] = IDF_LIST;
 #ifdef V2
   String mqtt_mes= "", ctrl_i, ctrl_o, d_name, rev, IDF_topic;
   bool new_message = false;
-  long lastMsg, now = millis();
   StaticJsonBuffer<512> JB_CD; // Dynamic buffer size is easy to make the esp8266 crash!!!!
                                // CD:ctrl data, i need a better name
   JsonArray& JA_CD = JB_CD.createArray(); // store topic and command of idf/odf, format:[["ESP12F_IDF","topic","command"],["ESP12F_ODF","topic","command"]]
