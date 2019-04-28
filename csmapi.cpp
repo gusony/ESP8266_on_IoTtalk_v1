@@ -38,6 +38,13 @@ String pull(char *df_name){
   if (result.HTTPStatusCode != 200) {
     Serial.println("[PULL]ERROR, " + String(df_name) + "," + String(result.HTTPStatusCode) +"\n"+String(result.payload));
     continue_error_quota--;
+    
+    // if error happens too much times, try register
+    if (continue_error_quota <= 0) {
+      Serial.println("[Pull] Try to register");
+      continue_error_quota = 5;
+      Register();
+    }
   }
   else {
     continue_error_quota = 5;
