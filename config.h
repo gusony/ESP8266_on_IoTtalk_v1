@@ -1,10 +1,12 @@
 
 /* main config */
-//#define V1
-#define V2
+#define V1
+//#define V2
+
 #define USE_WIFI
 //#define USE_SSL
 //#define USE_ETHERNET
+
 #define DF_LIST {"ESP12F_IDF", "ESP12F_ODF","ESP12F_testlatency"} //Device Feature list
 #define DF_NUM 3                                                  // must be eaual to the element numbers of DF_LIST 
 #define IDF_LIST {"ESP12F_IDF"}
