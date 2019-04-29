@@ -17,10 +17,10 @@
 |TX|RX|
 |RX|TX|
 |GPIO0|HISH(LOW when upload)|
-|Reset|HIGH(LOW when used)|  
-  
+|Reset|HIGH(LOW when used)|
+
 <br/>
-  
+
 |ENC28J60|Volt|
 |:-----:|:-----:|
 |Vcc|3.1V~3.6V(3.3V typical)|
@@ -29,7 +29,7 @@
 <br/>
 :heavy_exclamation_mark::heavy_exclamation_mark::heavy_exclamation_mark:<br/>
 ESP8266 use 3.3V
-BUT! you can use a voltage regulator ([ASM1117-3.3](http://www.advanced-monolithic.com/pdf/ds1117.pdf )) 
+BUT! you can use a voltage regulator ([ASM1117-3.3](http://www.advanced-monolithic.com/pdf/ds1117.pdf ))
 AMS1117-3.3 Vin=5V, Vout=3.3V<br/>
 So you can use 5V voltage.<br/>
 
@@ -72,9 +72,9 @@ Upload Speed|115200
 ## Feature Work
 1. ~~用bs170替換~~
 2. ~~寫Init()~~
-3. arduinojson library update to 6.10.0 version
+3. arduinojson library update to 6.10.1 version
 4. Pubsubclient library update from 2.6.0 to 2.7.0
-5. 把要改的參數移到config.h
+
 
 ## Variable
 * ServerIP/host : char array, global variable
