@@ -6,8 +6,6 @@ unsigned long Pull_TS=0; // TS: Timestamp
 
 //#define V1
 #ifdef TEST_V1
-#define TEST_DATA_NUM 1000
-#define TEST_DATA_INTERVAL 200
 void test_v1_latency(){
   int i = 0;
   unsigned long start_time = 0;

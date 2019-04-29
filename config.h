@@ -53,6 +53,10 @@
 //  #define debug_ETH_TCP
 #endif
 
+// for test v1
+#define TEST_DATA_NUM 1000
+#define TEST_DATA_INTERVAL 200
+
 
 /*  If use Ethernet, i suggest you using the static ip to saving memory usage. 
  *  If you want to use DHCP , you only need mac address. 
