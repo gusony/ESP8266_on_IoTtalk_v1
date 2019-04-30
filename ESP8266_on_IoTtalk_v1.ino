@@ -50,7 +50,7 @@ void setup(){
 #ifdef V1
   init_ODFtimestamp();
 #endif
-  delay(3000);
+  //delay(3000);
   Pull_TS = millis();
 }
 void loop(){

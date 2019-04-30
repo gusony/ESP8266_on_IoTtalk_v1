@@ -14,6 +14,8 @@
 #define DM_NAME  "ESP12F"                                         // Device Module name
 
 
+#define BAUDRATE 115200
+
 //#define FORCE_CONNECT                                           //if you don't want into ap_setting(),enable it
 #define HTTP_RESPONSE_PAYLOAD_SIZE 512                            // the size of payload of 'httpresp' struct 
 

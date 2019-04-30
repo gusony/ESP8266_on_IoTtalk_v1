@@ -94,7 +94,7 @@ void Init(void){
 
   // 1. initial serial port
   delay(10);
-  Serial.begin(115200);
+  Serial.begin(BAUDRATE);
   Serial.println();
   Serial.println("[Init] Serial OK.");
 
@@ -554,7 +554,6 @@ void connect_to_ethernet(void) {
   Serial.print("[Ethernet]localIP:");
   Serial.println(Ethernet.localIP());
 }
-
 #endif
 
 #ifdef USE_WIFI
